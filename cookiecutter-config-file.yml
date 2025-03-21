@@ -1,0 +1,16 @@
+# This project was generated using a Cookiecutter template:
+#       https://github.com/notsatan/go-template
+
+cookiecutter_inputs:
+  project_name: "ripple-server"
+  go_module_path: "github.com/ripple.mq/ripple-server"
+  license_owner: "nagarajRPoojari"
+  base_branch: "main"
+  contact_email: "np137270@gmail.com"
+  project_description: "Robust message broker for large scale applications"
+  github_specific_features: "n"
+  private_project: "n"
+  use_codecov: "n"
+  use_precommit: "n"
+  go_version: "1.21"
+  license: "MIT"

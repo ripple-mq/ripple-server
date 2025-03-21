@@ -1,0 +1,22 @@
+linters:
+  enable:
+    - govet
+    - revive  
+    - errcheck
+    - staticcheck
+    - gofmt
+    - unused
+    - mnd  
+
+  disable: [] 
+output:
+  formats:
+    - format: colored-line-number
+
+run:
+  go: 1.21
+  timeout: 2m
+
+issues:
+  exclude-dirs-use-default: true
+  uniq-by-line: true
