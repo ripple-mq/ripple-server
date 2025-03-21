@@ -10,6 +10,9 @@ on:
 jobs:
   release-drafter:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
       # Drafts release notes as Pull Requests are merged into "master"
       - uses: release-drafter/release-drafter@v5
