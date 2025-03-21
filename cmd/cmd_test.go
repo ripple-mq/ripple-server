@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ripple.mq/ripple-server/cmd"
+	"github.com/ripple-mq/ripple-server/cmd"
 )
 
 const (

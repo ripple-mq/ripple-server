@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	src "github.com/ripple.mq/ripple-server/internal"
+	src "github.com/ripple-mq/ripple-server/internal"
 )
 
 func Execute() {
