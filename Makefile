@@ -94,7 +94,7 @@ test-suite: lint test
 run: export production_mode=production
 run: export __BUILD_MODE__=production
 run:
-	go run main.go $(q)
+	go run cmd/main.go $(q)
 
 .PHONY: run-debug
 ## `run-debug`: Run `ripple-server` in debug mode
