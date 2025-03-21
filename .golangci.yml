@@ -6,7 +6,6 @@ linters:
     - staticcheck
     - gofmt
     - unused
-    - mnd  
 
   disable: [] 
 output:
