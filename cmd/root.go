@@ -2,13 +2,21 @@ package cmd
 
 import (
 	"fmt"
+
 	"os"
 
+	"github.com/charmbracelet/log"
 	src "github.com/ripple-mq/ripple-server/internal"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 func Execute() {
-	fmt.Printf("Running project: `%s`\n", src.ProjectName())
+	cfg, err := config.LoadConfig(".") // Load from current directory
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	log.Info(cfg)
 
 	// These functions demonstrate two separate checks to detect if the code is being
 	// run inside a docker container in debug mode, or production mode!
