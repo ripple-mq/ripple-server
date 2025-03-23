@@ -27,6 +27,7 @@ func Execute() {
 	log.Info(cfg)
 
 	lh, err := lighthouse.GetLightHouse()
+	lh.Connect()
 	if err != nil {
 		log.Errorf("Failed to get LightHouse: %v", err)
 	}

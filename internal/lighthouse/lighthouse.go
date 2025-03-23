@@ -15,29 +15,26 @@ type LigthHouse struct {
 	conn *zk.Conn
 }
 
-var ligthHouseInstance, _ = newLightHouse()
+var ligthHouseInstance *LigthHouse
 
 func GetLightHouse() (*LigthHouse, error) {
+	if ligthHouseInstance != nil {
+		return ligthHouseInstance, nil
+	}
+	ligthHouseInstance = &LigthHouse{}
 	return ligthHouseInstance, nil
 }
 
-func newLightHouse() (*LigthHouse, error) {
-
+func (t *LigthHouse) Connect() {
+	if t.conn != nil && t.conn.State() == zk.StateHasSession {
+		return
+	}
 	conn, _, err := zk.Connect([]string{config.Conf.Zookeeper.Address}, time.Second)
 	if err != nil {
 		log.Fatal("Failed to connect to Zookeeper:", err)
 	}
-
 	time.Sleep(1 * time.Second)
-
-	state := conn.State()
-	if state != zk.StateHasSession {
-		log.Warnf("Zookeeper connection state: %v", state)
-	} else {
-		log.Info("Successfully connected to Zookeeper")
-	}
-
-	return &LigthHouse{conn}, nil
+	t.conn = conn
 }
 
 func (t *LigthHouse) EnsurePathExists(path string) error {
