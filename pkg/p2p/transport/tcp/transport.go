@@ -30,7 +30,7 @@ type Transport struct {
 	wg       sync.WaitGroup
 }
 
-func NewTransport(addr string) (*Transport, error) {
+func NewTransport(addr string, OnAcceptingConn func(conn net.Conn)) (*Transport, error) {
 	address, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid address type, %v", err)
@@ -43,6 +43,7 @@ func NewTransport(addr string) (*Transport, error) {
 		PeersMap:          make(map[string]peer.Peer),
 		wg:                sync.WaitGroup{},
 		mu:                &sync.RWMutex{},
+		OnAcceptingConn:   OnAcceptingConn,
 	}, nil
 }
 

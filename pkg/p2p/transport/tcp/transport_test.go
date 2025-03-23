@@ -3,9 +3,11 @@ package tcp
 import (
 	"fmt"
 	"math/rand"
+	"net"
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 )
 
@@ -17,6 +19,10 @@ const (
 func RandLocalAddr() string {
 	randomNumber := rand.Intn(maxPort-minPort) + minPort
 	return fmt.Sprintf(":%d", randomNumber)
+}
+
+func dummyOnConnFunction(conn net.Conn) {
+	log.Debugf("handshake with %v", conn)
 }
 
 func TestNewTransport(t *testing.T) {
@@ -44,7 +50,7 @@ func TestNewTransport(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewTransport(tt.addr)
+			got, err := NewTransport(tt.addr, dummyOnConnFunction)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewTransport() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -82,7 +88,7 @@ func TestTransport_Listen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tr, err := NewTransport(tt.addr)
+			tr, err := NewTransport(tt.addr, dummyOnConnFunction)
 			if err != nil {
 				if !tt.wantErr {
 					t.Errorf("NewTransport() error = %v, wantErr %v", err, tt.wantErr)
@@ -121,8 +127,8 @@ func TestTransport_Send(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, _ := NewTransport(tt.serverAddr)
-			client, err := NewTransport(tt.clientAddr)
+			server, _ := NewTransport(tt.serverAddr, dummyOnConnFunction)
+			client, err := NewTransport(tt.clientAddr, dummyOnConnFunction)
 
 			if err != nil {
 				if !tt.wantErr {
@@ -165,8 +171,8 @@ func TestTransport_Close(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, _ := NewTransport(tt.serverAddr)
-			client, err := NewTransport(tt.clientAddr)
+			server, _ := NewTransport(tt.serverAddr, dummyOnConnFunction)
+			client, err := NewTransport(tt.clientAddr, dummyOnConnFunction)
 
 			if err != nil {
 				if !tt.wantErr {
@@ -214,8 +220,8 @@ func TestTransport_Consume(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, _ := NewTransport(tt.serverAddr)
-			client, err := NewTransport(tt.clientAddr)
+			server, _ := NewTransport(tt.serverAddr, dummyOnConnFunction)
+			client, err := NewTransport(tt.clientAddr, dummyOnConnFunction)
 
 			if err != nil {
 				if !tt.wantErr {
