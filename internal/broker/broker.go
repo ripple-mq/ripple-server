@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue/server"
 )
@@ -18,7 +19,11 @@ func (t *Broker) CreateAndRunQueue(paddr, caddr string) {
 	p, _ := server.NewProducerServer(paddr, q)
 	c, _ := server.NewConsumerServer(caddr, q)
 
-	p.Listen()
-	c.Listen()
+	if err := p.Listen(); err != nil {
+		log.Errorf("failed to start producer server: %v", err)
+	}
+	if err := c.Listen(); err != nil {
+		log.Errorf("failed to start consumer server: %v", err)
+	}
 
 }

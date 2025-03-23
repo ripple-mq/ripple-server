@@ -36,7 +36,9 @@ func (t *ProducerServer[T]) Listen() error {
 }
 
 func (t *ProducerServer[T]) Stop() {
-	t.server.Stop()
+	if err := t.server.Stop(); err != nil {
+		log.Errorf("failed to stop: %v", err)
+	}
 }
 
 func (t *ProducerServer[T]) startPopulatingQueue() {

@@ -18,7 +18,7 @@ const ConsumerPath string = "/consumers"
 // AskQuery needs a standard serialization to make it compatible with all language/frameworks
 type AskQuery struct {
 	Count int
-	Id    string
+	ID    string
 }
 
 type ConsumerServer[T any] struct {
@@ -47,7 +47,9 @@ func (t *ConsumerServer[T]) Listen() error {
 }
 
 func (t *ConsumerServer[T]) Stop() {
-	t.server.Stop()
+	if err := t.server.Stop(); err != nil {
+		log.Errorf("failed to stop: %v", err)
+	}
 }
 
 func (t *ConsumerServer[T]) startStreaming() {
@@ -65,16 +67,18 @@ func (t *ConsumerServer[T]) startStreaming() {
 
 func (t *ConsumerServer[T]) StreamingLoop(query AskQuery, clientAddr string) {
 	lh, _ := lighthouse.GetLightHouse()
-	data, _ := lh.Read(lighthouse.Path{Base: fmt.Sprintf("%s/%s", ConsumerPath, query.Id)})
+	data, _ := lh.Read(lighthouse.Path{Base: fmt.Sprintf("%s/%s", ConsumerPath, query.ID)})
 	offset, _ := strconv.Atoi(string(data))
-	defer lh.UpdateZnode(getConsumerPath(query.Id), strconv.Itoa(offset+query.Count))
+	defer lh.UpdateZnode(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 
 	for {
 		messages := t.q.SubArray(offset, offset+query.Count)
 		if len(messages) == 0 {
 			continue
 		}
-		t.server.Send(clientAddr, struct{}{}, messages)
+		if err := t.server.Send(clientAddr, struct{}{}, messages); err != nil {
+			log.Errorf("failed to send: %v", err)
+		}
 		offset += len(messages)
 	}
 }

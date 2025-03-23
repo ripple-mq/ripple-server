@@ -18,7 +18,7 @@ import (
 
 type AskQuery struct {
 	Count int
-	Id    string
+	ID    string
 }
 
 func TestCreateAndRunQueue(t *testing.T) {
@@ -36,13 +36,20 @@ func TestCreateAndRunQueue(t *testing.T) {
 		i := 0
 		for {
 			var buff bytes.Buffer
-			encoder.GOBEncoder{}.Encode((fmt.Sprintf("message: %d", i)), &buff)
-			client.Send(paddr, struct{}{}, buff.Bytes())
+			err := encoder.GOBEncoder{}.Encode((fmt.Sprintf("message: %d", i)), &buff)
+			if err != nil {
+				t.Errorf("failed to encode: %v", err)
+			}
+			if err := client.Send(paddr, struct{}{}, buff.Bytes()); err != nil {
+				t.Errorf("failed to send: %v", err)
+			}
 			i++
 		}
 	}()
 
-	client.Send(caddr, "0", AskQuery{Count: 4, Id: strconv.Itoa(0)})
+	if err := client.Send(caddr, "0", AskQuery{Count: 4, ID: strconv.Itoa(0)}); err != nil {
+		t.Errorf("failed to send: %v", err)
+	}
 
 	go func() {
 		for {
@@ -54,7 +61,10 @@ func TestCreateAndRunQueue(t *testing.T) {
 			var msgs []string
 			for _, i := range msg {
 				var m string
-				encoder.GOBDecoder{}.Decode(bytes.NewBuffer(i), &m)
+				err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(i), &m)
+				if err != nil {
+					t.Errorf("failed to decode: %v", err)
+				}
 				msgs = append(msgs, m)
 			}
 			log.Infof("Consumer: %s %s ", addr, msgs)
