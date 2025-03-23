@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package bootstrapserver;
+package internalserver;
 
-option go_package = "./server/bootstrap/proto;bootstrapserver"; 
+option go_package = "./server/internal/proto;internalserver"; 
 
-service BootstrapService {
+service InternalService {
   rpc CreateBucket(CreateBucketReq) returns (CreateBucketResp);
 }
 

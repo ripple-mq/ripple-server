@@ -3,8 +3,8 @@ package server
 import (
 	"log"
 
-	bootsrrap "github.com/ripple-mq/ripple-server/server/bootstrap"
 	broker "github.com/ripple-mq/ripple-server/server/exposed"
+	bootsrrap "github.com/ripple-mq/ripple-server/server/internal"
 )
 
 type Server struct {

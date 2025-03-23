@@ -4,13 +4,13 @@ import (
 	"net"
 
 	"github.com/charmbracelet/log"
-	pb "github.com/ripple-mq/ripple-server/server/bootstrap/proto"
+	pb "github.com/ripple-mq/ripple-server/server/internal/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 type Server struct {
-	pb.UnimplementedBootstrapServiceServer
+	pb.UnimplementedInternalServiceServer
 }
 
 type BootstrapServer struct {
@@ -26,7 +26,7 @@ func NewBoostrapServer(addr string) (*BootstrapServer, error) {
 	}
 
 	s := grpc.NewServer()
-	pb.RegisterBootstrapServiceServer(s, Server{})
+	pb.RegisterInternalServiceServer(s, Server{})
 	reflection.Register(s)
 	return &BootstrapServer{
 		Addr:     listener.Addr(),

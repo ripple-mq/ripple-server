@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package brokerserver;
+package bootstrapserver;
 
-option go_package = "./server/exposed/proto;brokerserver"; 
+option go_package = "./server/exposed/proto;bootstrapserver"; 
 
-service BrokerService {
+service BootstrapServer {
   rpc CreateBucket(CreateBucketReq) returns (CreateBucketResp);
   rpc GetProducerConnection(GetProducerConnectionReq) returns (GetProducerConnectionResp);
   rpc GetConsumerConnection(GetConsumerConnnectionReq) returns (GetConsumerConnectionResp);
