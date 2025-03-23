@@ -28,10 +28,6 @@ func TestMain(m *testing.M) {
 	os.Exit(val)
 }
 
-func TestMainMethod(_ *testing.T) {
-	cmd.Execute()
-}
-
 func dirtyCheck(t *testing.T, val01, val02 bool) {
 	t.Helper()
 
