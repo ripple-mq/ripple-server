@@ -78,3 +78,11 @@ func (t *LigthHouse) RegisterSequential(path Path, data interface{}) Path {
 	pathSplits := strings.Split(ephemeralNodePath, "/")
 	return Path{Base: path.Base, Role: path.Role, Name: pathSplits[len(pathSplits)-1]}
 }
+
+func (t *LigthHouse) Read(path string) ([]byte, error) {
+	data, _, err := t.conn.Get(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading znode: %v", err)
+	}
+	return data, nil
+}
