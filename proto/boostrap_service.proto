@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package bootstrapserver;
+
+option go_package = "./server/bootstrap/proto;bootstrapserver"; 
+
+service BootstrapService {
+  rpc CreateBucket(CreateBucketReq) returns (CreateBucketResp);
+}
+
+message CreateBucketReq {
+    string topic = 1;
+    string bucket = 2;
+}
+
+message CreateBucketResp {
+    bool success = 1;
+}

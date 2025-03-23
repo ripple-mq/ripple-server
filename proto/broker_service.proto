@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package brokerserver;
+
+option go_package = "./server/exposed/proto;brokerserver"; 
+
+service BrokerService {
+  rpc CreateBucket(CreateBucketReq) returns (CreateBucketResp);
+  rpc GetProducerConnection(GetProducerConnectionReq) returns (GetProducerConnectionResp);
+  rpc GetConsumerConnection(GetConsumerConnnectionReq) returns (GetConsumerConnectionResp);
+}
+
+message CreateBucketReq {
+    string topic = 1;
+    string bucket = 2;
+}
+
+message CreateBucketResp {
+    bool success = 1;
+}
+
+message GetProducerConnectionReq {
+    string topic = 1;
+    string bucket = 2;
+}
+
+message GetProducerConnectionResp {
+    string address = 1;
+    bool success = 2;
+}
+
+message GetConsumerConnnectionReq {
+    string topic = 1;
+    string bucket = 2;
+}
+
+message GetConsumerConnectionResp {
+    string address = 1;
+    bool success = 2;
+}
+
