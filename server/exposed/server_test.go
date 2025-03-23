@@ -1,8 +1,20 @@
 package server
 
 import (
+	"fmt"
+	"math/rand"
 	"testing"
 )
+
+const (
+	minPort = 1024
+	maxPort = 49150
+)
+
+func RandLocalAddr() string {
+	randomNumber := rand.Intn(maxPort-minPort) + minPort
+	return fmt.Sprintf(":%d", randomNumber)
+}
 
 func TestNewBrokerServer(t *testing.T) {
 	type args struct {
@@ -15,7 +27,7 @@ func TestNewBrokerServer(t *testing.T) {
 	}{
 		{
 			name:    "Test normal flow",
-			args:    args{addr: ":9000"},
+			args:    args{addr: RandLocalAddr()},
 			wantErr: false,
 		},
 		{
