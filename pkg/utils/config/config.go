@@ -7,10 +7,12 @@ import (
 )
 
 type Config struct {
-	Server struct {
-		Name string
+	Zookeeper struct {
+		Address string
 	}
 }
+
+var Conf, _ = LoadConfig(".")
 
 func LoadConfig(path string) (*Config, error) {
 	viper.SetConfigName("config")

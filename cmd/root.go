@@ -2,21 +2,42 @@ package cmd
 
 import (
 	"fmt"
+	"math/rand"
 
 	"os"
 
 	"github.com/charmbracelet/log"
-	src "github.com/ripple-mq/ripple-server/internal"
+	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
+const (
+	minPort = 1024
+	maxPort = 49150
+)
+
+func RandLocalAddr() string {
+	randomNumber := rand.Intn(maxPort-minPort) + minPort
+	return fmt.Sprintf(":%d", randomNumber)
+}
+
 func Execute() {
-	cfg, err := config.LoadConfig(".") // Load from current directory
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
+	cfg := config.Conf
 
 	log.Info(cfg)
+
+	lh, err := lighthouse.NewLightHouse()
+	if err != nil {
+		log.Errorf("Failed to get LightHouse: %v", err)
+	}
+
+	addr := RandLocalAddr()
+	p := lh.RegisterFollower(lighthouse.Path{Base: "/topics/topic-0/bucket-0"}, addr)
+	log.Infof("PATH: %s", p)
+
+	lh.ElectLeader(p, addr)
+
+	go lh.WatchForLeader(p, addr)
 
 	// These functions demonstrate two separate checks to detect if the code is being
 	// run inside a docker container in debug mode, or production mode!
@@ -25,7 +46,8 @@ func Execute() {
 	FirstCheck()
 	SecondCheck()
 
-	src.ProjectName()
+	select {}
+
 }
 
 func FirstCheck() bool {
