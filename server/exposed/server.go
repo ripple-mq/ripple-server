@@ -10,7 +10,7 @@ import (
 )
 
 type Server struct {
-	pb.UnimplementedBrokerServiceServer
+	pb.UnimplementedBootstrapServerServer
 }
 
 type BrokerServer struct {
@@ -26,7 +26,7 @@ func NewBrokerServer(addr string) (*BrokerServer, error) {
 	}
 
 	s := grpc.NewServer()
-	pb.RegisterBrokerServiceServer(s, Server{})
+	pb.RegisterBootstrapServerServer(s, Server{})
 	reflection.Register(s)
 	return &BrokerServer{
 		Addr:     listener.Addr(),
