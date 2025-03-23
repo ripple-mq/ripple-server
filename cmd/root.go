@@ -26,7 +26,7 @@ func Execute() {
 
 	log.Info(cfg)
 
-	lh, err := lighthouse.NewLightHouse()
+	lh, err := lighthouse.GetLightHouse()
 	if err != nil {
 		log.Errorf("Failed to get LightHouse: %v", err)
 	}
@@ -35,7 +35,9 @@ func Execute() {
 	p := lh.RegisterFollower(lighthouse.Path{Base: "/topics/topic-0/bucket-0"}, addr)
 	log.Infof("PATH: %s", p)
 
-	lh.ElectLeader(p, addr)
+	if err := lh.ElectLeader(p, addr); err != nil {
+		log.Fatalf("failed to elect leader: %v", err)
+	}
 
 	go lh.WatchForLeader(p, addr)
 

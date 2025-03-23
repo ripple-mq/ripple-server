@@ -51,15 +51,15 @@ func (t *Path) BasePath() string {
 	return path
 }
 
-func (t *LigthHouse) RegisterFollower(path Path, data string) Path {
+func (t *LigthHouse) RegisterFollower(path Path, data any) Path {
 	return t.RegisterSequential(Path{Base: path.Base, Role: Follower}, data)
 }
 
-func (t *LigthHouse) RegisterLeader(path Path, data string) Path {
+func (t *LigthHouse) RegisterLeader(path Path, data any) Path {
 	return t.RegisterSequential(Path{Base: path.Base, Role: Leader, Name: path.Name}, data)
 }
 
-func (t *LigthHouse) ElectLeader(path Path, data string) error {
+func (t *LigthHouse) ElectLeader(path Path, data any) error {
 	children, _, err := t.conn.Children(path.BasePath())
 	if err != nil {
 		return err
@@ -73,31 +73,32 @@ func (t *LigthHouse) ElectLeader(path Path, data string) error {
 
 	if path.FullPath() == path.BasePath()+"/"+children[0] {
 		t.RegisterSequential(Path{Base: path.Base, Role: Leader, Name: path.Name}, data)
-		fmt.Printf("I am the leader: %s\n", path.FullPath())
+		log.Infof("I am the leader: %s\n", path.FullPath())
 	} else {
-		fmt.Printf("I am not the leader, my node is: %s\n  but leader: %s", path.FullPath(), path.BasePath()+"/"+children[0])
+		log.Infof("I am not the leader, my node is: %s\n  but leader: %s", path.FullPath(), path.BasePath()+"/"+children[0])
 	}
 
 	return nil
 }
 
-func (t *LigthHouse) WatchForLeader(path Path, data string) error {
+func (t *LigthHouse) WatchForLeader(path Path, data any) {
 	for {
-		log.Info(path.AsLeader())
 		children, _, ch, err := t.conn.ChildrenW(path.AsLeader())
 		if err != nil {
-			return err
+			log.Fatalf("failed to watch for leader: %v", err)
+			return
 		}
 		if len(children) > 0 {
 			leader := children[0]
-			fmt.Printf("Current Leader: %s\n", leader)
+			log.Debugf("Current Leader: %s\n", leader)
 		}
 
 		<-ch
-		fmt.Println("Leader path changed, re-electing leader.")
+		log.Debugf("Leader path changed, re-electing leader.")
 		err = t.ElectLeader(path, data)
 		if err != nil {
-			return err
+			log.Errorf("failed to watch for leader: %v", err)
+			return
 		}
 	}
 }

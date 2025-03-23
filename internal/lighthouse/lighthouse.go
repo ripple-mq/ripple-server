@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 	"github.com/samuel/go-zookeeper/zk"
 )
@@ -14,7 +15,13 @@ type LigthHouse struct {
 	conn *zk.Conn
 }
 
-func NewLightHouse() (*LigthHouse, error) {
+var ligthHouseInstance, _ = newLightHouse()
+
+func GetLightHouse() (*LigthHouse, error) {
+	return ligthHouseInstance, nil
+}
+
+func newLightHouse() (*LigthHouse, error) {
 
 	conn, _, err := zk.Connect([]string{config.Conf.Zookeeper.Address}, time.Second)
 	if err != nil {
@@ -27,7 +34,7 @@ func NewLightHouse() (*LigthHouse, error) {
 	if state != zk.StateHasSession {
 		log.Warnf("Zookeeper connection state: %v", state)
 	} else {
-		log.Infof("Successfully connected to Zookeeper")
+		log.Info("Successfully connected to Zookeeper")
 	}
 
 	return &LigthHouse{conn}, nil
@@ -61,13 +68,13 @@ func (t *LigthHouse) EnsurePathExists(path string) error {
 	return nil
 }
 
-func (t *LigthHouse) RegisterSequential(path Path, data string) Path {
+func (t *LigthHouse) RegisterSequential(path Path, data interface{}) Path {
 	err := t.EnsurePathExists(path.BasePath())
 	if err != nil {
 		log.Errorf("Failed to register: %v", err)
 		return Path{}
 	}
-	ephemeralNodePath, err := t.conn.CreateProtectedEphemeralSequential(path.BasePath()+"/", []byte(data), zk.WorldACL(zk.PermAll))
+	ephemeralNodePath, err := t.conn.CreateProtectedEphemeralSequential(path.BasePath()+"/", utils.ToBytes(data), zk.WorldACL(zk.PermAll))
 	if err != nil {
 		return Path{}
 	}
