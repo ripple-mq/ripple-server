@@ -21,8 +21,8 @@ func RandLocalAddr() string {
 	return fmt.Sprintf(":%d", randomNumber)
 }
 
-func dummyOnConnFunction(conn net.Conn) {
-	log.Debugf("handshake with %v", conn)
+func dummyOnConnFunction(conn net.Conn, msg []byte) {
+	log.Infof("handshake with %v %s", conn, string(msg))
 }
 
 func TestNewTransport(t *testing.T) {
@@ -144,11 +144,10 @@ func TestTransport_Send(t *testing.T) {
 				}
 			}()
 
-			time.Sleep(100 * time.Millisecond)
-
-			if err := client.Send(tt.serverAddr, tt.data); (err != nil) != tt.wantErr {
+			if err := client.Send(tt.serverAddr, "dummy metadata", tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Transport.Send() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			time.Sleep(1000 * time.Millisecond)
 		})
 	}
 }
@@ -190,7 +189,7 @@ func TestTransport_Close(t *testing.T) {
 
 			time.Sleep(100 * time.Millisecond)
 
-			if err := client.Send(tt.serverAddr, tt.data); (err != nil) != tt.wantErr {
+			if err := client.Send(tt.serverAddr, "dummy metadata", tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Transport.Send() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -239,7 +238,7 @@ func TestTransport_Consume(t *testing.T) {
 
 			time.Sleep(100 * time.Millisecond)
 
-			if err := client.Send(tt.serverAddr, tt.data); (err != nil) != tt.wantErr {
+			if err := client.Send(tt.serverAddr, "dummy metadata", tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Transport.Send() error = %v, wantErr %v", err, tt.wantErr)
 			}
 

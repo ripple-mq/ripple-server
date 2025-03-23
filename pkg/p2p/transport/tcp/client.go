@@ -10,11 +10,19 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/peer"
 )
 
-func (t *Transport) send(addr string, data any) error {
+func (t *Transport) send(addr string, metadata any, data any) error {
 	peerNode, err := t.dial(addr)
 	if err != nil {
 		return err
 	}
+	if metadata != struct{}{} {
+		t.write(peerNode, metadata)
+	}
+	t.write(peerNode, data)
+	return nil
+}
+
+func (t *Transport) write(peerNode peer.Peer, data any) {
 	var msg bytes.Buffer
 	_ = t.Encoder.Encode(data, &msg)
 
@@ -22,17 +30,14 @@ func (t *Transport) send(addr string, data any) error {
 	lengthBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(lengthBytes, length)
 
-	_, err = peerNode.GetConnection().Write(lengthBytes)
+	_, err := peerNode.GetConnection().Write(lengthBytes)
 	if err != nil {
-		return fmt.Errorf("failed to send length %s, %v", addr, err)
+		log.Errorf("failed to send: %v", err)
 	}
-	n, err := peerNode.GetConnection().Write(msg.Bytes())
+	_, err = peerNode.GetConnection().Write(msg.Bytes())
 	if err != nil {
-		return fmt.Errorf("failed to send data to %s, %v", addr, err)
+		log.Errorf("failed to send data: %v", err)
 	}
-	log.Debugf("successfully wrote %d bytes to %s", n, addr)
-
-	return nil
 }
 
 func (t *Transport) dial(addr string) (peer.Peer, error) {
@@ -44,7 +49,7 @@ func (t *Transport) dial(addr string) (peer.Peer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to establish connection with %s", addr)
 	}
-	t.addConnection(conn)
+
 	go t.handleConnection(conn)
 
 	return t.addConnection(conn), nil

@@ -1,22 +1,23 @@
-package queue
+package server
 
 import (
+	"bytes"
 	"net"
 
 	"github.com/charmbracelet/log"
+	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
-	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 
 type ProducerServer[T any] struct {
 	listenAddr net.Addr
 	server     *tcp.Transport
-	q          *collection.ConcurrentList[T]
+	q          *queue.Queue[T]
 }
 
-func NewProducerServer[T any](addr string, q *collection.ConcurrentList[T]) (*ProducerServer[T], error) {
-	server, err := tcp.NewTransport(addr)
+func NewProducerServer[T any](addr string, q *queue.Queue[T]) (*ProducerServer[T], error) {
+	server, err := tcp.NewTransport(addr, onAcceptingProdcuer)
 	if err != nil {
 		return nil, err
 	}
@@ -29,14 +30,16 @@ func NewProducerServer[T any](addr string, q *collection.ConcurrentList[T]) (*Pr
 }
 
 func (t *ProducerServer[T]) Listen() error {
-	return t.server.Listen()
+	err := t.server.Listen()
+	t.startPopulatingQueue()
+	return err
 }
 
 func (t *ProducerServer[T]) Stop() {
 	t.server.Stop()
 }
 
-func (t *ProducerServer[T]) PopulateQueueLoop() {
+func (t *ProducerServer[T]) startPopulatingQueue() {
 	go func() {
 		for {
 			var data T
@@ -44,7 +47,16 @@ func (t *ProducerServer[T]) PopulateQueueLoop() {
 			if err != nil {
 				log.Warnf("error reading data: %v", err)
 			}
-			t.q.Append(data)
+			t.q.Push(data)
 		}
 	}()
+}
+
+func onAcceptingProdcuer(conn net.Conn, msg []byte) {
+	var MSG string
+	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg), &MSG)
+	if err != nil {
+		return
+	}
+	log.Infof("Accepting producer: %v, message: %s", conn, MSG)
 }

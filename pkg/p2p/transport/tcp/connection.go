@@ -12,7 +12,7 @@ import (
 )
 
 func (t *Transport) handleConnection(conn net.Conn) {
-	t.OnAcceptingConn(conn)
+	isOnConnExecuted := false
 	defer func() {
 		err := t.dropConnection(conn.RemoteAddr().String())
 		if err != nil {
@@ -33,6 +33,12 @@ func (t *Transport) handleConnection(conn net.Conn) {
 
 		var buffer = make([]byte, length)
 		n, _ := conn.Read(buffer)
+
+		if !isOnConnExecuted {
+			t.OnAcceptingConn(conn, buffer[:n])
+			isOnConnExecuted = true
+			continue
+		}
 
 		log.Debugf("Recieved message of length %d from %s", n, conn.RemoteAddr().String())
 		t.IncommingMsgQueue <- Message{RemoteAddr: conn.RemoteAddr().String(), Payload: buffer[:n]}

@@ -22,7 +22,7 @@ type Transport struct {
 	ListenAddr        net.Addr
 	IncommingMsgQueue chan Message
 	Encoder           encoder.Encoder
-	OnAcceptingConn   func(conn net.Conn)
+	OnAcceptingConn   func(conn net.Conn, message []byte)
 
 	mu       *sync.RWMutex
 	PeersMap map[string]peer.Peer
@@ -30,7 +30,7 @@ type Transport struct {
 	wg       sync.WaitGroup
 }
 
-func NewTransport(addr string, OnAcceptingConn func(conn net.Conn)) (*Transport, error) {
+func NewTransport(addr string, OnAcceptingConn func(conn net.Conn, msg []byte)) (*Transport, error) {
 	address, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid address type, %v", err)
@@ -66,8 +66,8 @@ func (t *Transport) Stop() error {
 }
 
 // Send sends message
-func (t *Transport) Send(addr string, data any) error {
-	return t.send(addr, data)
+func (t *Transport) Send(addr string, metadata any, data any) error {
+	return t.send(addr, metadata, data)
 }
 
 // Close drops existing connection
