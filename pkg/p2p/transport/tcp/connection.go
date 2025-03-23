@@ -12,7 +12,7 @@ import (
 )
 
 func (t *Transport) handleConnection(conn net.Conn) {
-
+	t.OnAcceptingConn(conn)
 	defer func() {
 		err := t.dropConnection(conn.RemoteAddr().String())
 		if err != nil {
