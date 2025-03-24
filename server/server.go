@@ -32,5 +32,5 @@ func (t *Server) Listen() {
 
 func (t *Server) Stop() {
 	t.bootstrapServer.Stop()
-	t.brokerServer.Stop()
+	t.brokerServer.Stop() //
 }
