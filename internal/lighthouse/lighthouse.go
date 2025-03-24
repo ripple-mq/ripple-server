@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
+	u "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/samuel/go-zookeeper/zk"
 )
 
@@ -65,39 +65,39 @@ func (t *LigthHouse) EnsurePathExists(path string) error {
 	return nil
 }
 
-func (t *LigthHouse) RegisterSequential(path Path, data interface{}) Path {
-	err := t.EnsurePathExists(path.BasePath())
+func (t *LigthHouse) RegisterSequential(path u.Path, data interface{}) u.Path {
+	err := t.EnsurePathExists(u.PathBuilder{}.Base(path).GetDir())
 	if err != nil {
 		log.Errorf("Failed to register: %v", err)
-		return Path{}
+		return u.Path{}
 	}
-	ephemeralNodePath, err := t.conn.CreateProtectedEphemeralSequential(path.BasePath()+"/", utils.ToBytes(data), zk.WorldACL(zk.PermAll))
+	ephemeralNodePath, err := t.conn.CreateProtectedEphemeralSequential(u.PathBuilder{}.Base(path).GetDir(), u.ToBytes(data), zk.WorldACL(zk.PermAll))
 	if err != nil {
-		return Path{}
+		return u.Path{}
 	}
-	pathSplits := strings.Split(ephemeralNodePath, "/")
-	return Path{Base: path.Base, Role: path.Role, Name: pathSplits[len(pathSplits)-1]}
+
+	return u.Path{Cmp: strings.Split(ephemeralNodePath, "/")[1:]}
 }
 
-func (t *LigthHouse) Read(path Path) ([]byte, error) {
-	err := t.EnsurePathExists(path.BasePath())
+func (t *LigthHouse) Read(path u.Path) ([]byte, error) {
+	err := t.EnsurePathExists(u.PathBuilder{}.Base(path).GetDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read: %v", err)
 	}
-	data, _, err := t.conn.Get(path.FullPath())
+	data, _, err := t.conn.Get(u.PathBuilder{}.Base(path).GetFile())
 	if err != nil {
 		return nil, fmt.Errorf("error reading znode: %v", err)
 	}
 	return data, nil
 }
 
-func (t *LigthHouse) UpdateZnode(path Path, newData any) {
-	_, stat, err := t.conn.Get(path.FullPath())
+func (t *LigthHouse) UpdateZnode(path u.Path, newData any) {
+	_, stat, err := t.conn.Get(u.PathBuilder{}.GetFile())
 	if err != nil {
 		log.Fatalf("Failed to read znode before updating: %v", err)
 	}
 
-	_, err = t.conn.Set(path.FullPath(), utils.ToBytes(newData), stat.Version)
+	_, err = t.conn.Set(u.PathBuilder{}.Base(path).GetFile(), u.ToBytes(newData), stat.Version)
 	if err != nil {
 		log.Fatalf("Failed to update znode: %v", err)
 	}

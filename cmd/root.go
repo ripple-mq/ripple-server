@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
+	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
@@ -33,8 +34,7 @@ func Execute() {
 	}
 
 	addr := RandLocalAddr()
-	p := lh.RegisterFollower(lighthouse.Path{Base: "/topics/topic-0/bucket-0"}, addr)
-	log.Infof("PATH: %s", p)
+	p := lh.RegisterFollower(utils.Path{Cmp: []string{"topics", "topic-0", "bucket-0"}}, addr)
 
 	if err := lh.ElectLeader(p, addr); err != nil {
 		log.Fatalf("failed to elect leader: %v", err)
