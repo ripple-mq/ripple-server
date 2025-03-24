@@ -21,6 +21,7 @@ func GetLightHouse() (*LigthHouse, error) {
 		return ligthHouseInstance, nil
 	}
 	ligthHouseInstance = &LigthHouse{}
+	ligthHouseInstance.Connect()
 	return ligthHouseInstance, nil
 }
 
