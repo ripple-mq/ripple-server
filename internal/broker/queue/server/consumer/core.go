@@ -7,52 +7,11 @@ import (
 	"strconv"
 
 	"github.com/charmbracelet/log"
-	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 )
 
-const ConsumerPath string = "/consumers"
-
-// AskQuery needs a standard serialization to make it compatible with all language/frameworks
-type AskQuery struct {
-	Count int
-	ID    string
-}
-
-type ConsumerServer[T any] struct {
-	listenAddr net.Addr
-	server     *tcp.Transport
-	q          *queue.Queue[T]
-}
-
-func NewConsumerServer[T any](addr string, q *queue.Queue[T]) (*ConsumerServer[T], error) {
-	server, err := tcp.NewTransport(addr, onAcceptingConsumer)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ConsumerServer[T]{
-		listenAddr: server.ListenAddr,
-		server:     server,
-		q:          q,
-	}, nil
-}
-
-func (t *ConsumerServer[T]) Listen() error {
-	err := t.server.Listen()
-	t.startStreaming()
-	return err
-}
-
-func (t *ConsumerServer[T]) Stop() {
-	if err := t.server.Stop(); err != nil {
-		log.Errorf("failed to stop: %v", err)
-	}
-}
-
-func (t *ConsumerServer[T]) startStreaming() {
+func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 	go func() {
 		for {
 			var query AskQuery
@@ -60,12 +19,13 @@ func (t *ConsumerServer[T]) startStreaming() {
 			if err != nil {
 				continue
 			}
-			go t.StreamingLoop(query, clientAddr)
+			go t.handleConsumeReq(query, clientAddr)
 		}
 	}()
 }
 
-func (t *ConsumerServer[T]) StreamingLoop(query AskQuery, clientAddr string) {
+// TODO: offset will go wrong once i introduce TTL
+func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) {
 	lh, _ := lighthouse.GetLightHouse()
 	data, _ := lh.Read(lighthouse.Path{Base: fmt.Sprintf("%s/%s", ConsumerPath, query.ID)})
 	offset, _ := strconv.Atoi(string(data))

@@ -3,7 +3,8 @@ package broker
 import (
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
-	"github.com/ripple-mq/ripple-server/internal/broker/queue/server"
+	cs "github.com/ripple-mq/ripple-server/internal/broker/queue/server/consumer"
+	ps "github.com/ripple-mq/ripple-server/internal/broker/queue/server/producer"
 )
 
 type Broker struct {
@@ -16,8 +17,8 @@ func NewBroker() *Broker {
 func (t *Broker) CreateAndRunQueue(paddr, caddr string) {
 	q := queue.NewQueue[[]byte]()
 
-	p, _ := server.NewProducerServer(paddr, q)
-	c, _ := server.NewConsumerServer(caddr, q)
+	p, _ := ps.NewProducerServer(paddr, q)
+	c, _ := cs.NewConsumerServer(caddr, q)
 
 	if err := p.Listen(); err != nil {
 		log.Errorf("failed to start producer server: %v", err)
