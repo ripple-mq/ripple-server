@@ -16,7 +16,7 @@ func RandLocalAddr() string {
 	return fmt.Sprintf(":%d", randomNumber)
 }
 
-func TestNewBrokerServer(t *testing.T) {
+func TesNewBootstrapServer(t *testing.T) {
 	type args struct {
 		addr string
 	}
@@ -38,7 +38,7 @@ func TestNewBrokerServer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewBrokerServer(tt.args.addr)
+			_, err := NewBootstrapServer(tt.args.addr)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewBoostrapServer() error = %v, wantErr %v", err, tt.wantErr)
 				return

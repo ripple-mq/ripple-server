@@ -13,13 +13,13 @@ type Server struct {
 	pb.UnimplementedInternalServiceServer
 }
 
-type BootstrapServer struct {
+type InternalServer struct {
 	Addr     net.Addr
 	listener *net.Listener
 	server   *grpc.Server
 }
 
-func NewBoostrapServer(addr string) (*BootstrapServer, error) {
+func NewInternalServer(addr string) (*InternalServer, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -28,14 +28,14 @@ func NewBoostrapServer(addr string) (*BootstrapServer, error) {
 	s := grpc.NewServer()
 	pb.RegisterInternalServiceServer(s, Server{})
 	reflection.Register(s)
-	return &BootstrapServer{
+	return &InternalServer{
 		Addr:     listener.Addr(),
 		listener: &listener,
 		server:   s,
 	}, nil
 }
 
-func (t *BootstrapServer) Listen() error {
+func (t *InternalServer) Listen() error {
 	go func() {
 		log.Infof("started bootstrap server metadata service, listening on port: %s", t.Addr)
 		if err := t.server.Serve(*t.listener); err != nil {
@@ -45,6 +45,6 @@ func (t *BootstrapServer) Listen() error {
 	return nil
 }
 
-func (t *BootstrapServer) Stop() {
+func (t *InternalServer) Stop() {
 	t.server.Stop()
 }
