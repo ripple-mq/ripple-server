@@ -2,12 +2,12 @@ package server
 
 import (
 	"bytes"
-	"fmt"
 	"net"
 	"strconv"
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
+	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 )
 
@@ -27,7 +27,7 @@ func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 // TODO: offset will go wrong once i introduce TTL
 func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) {
 	lh, _ := lighthouse.GetLightHouse()
-	data, _ := lh.Read(lighthouse.Path{Base: fmt.Sprintf("%s/%s", ConsumerPath, query.ID)})
+	data, _ := lh.Read(getConsumerPath(query.ID))
 	offset, _ := strconv.Atoi(string(data))
 	defer lh.UpdateZnode(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 
@@ -58,6 +58,6 @@ func registerConsumer(id string) {
 	lh.RegisterSequential(getConsumerPath(id), strconv.Itoa(0))
 }
 
-func getConsumerPath(id string) lighthouse.Path {
-	return lighthouse.Path{Base: fmt.Sprintf("%s/%s", ConsumerPath, id)}
+func getConsumerPath(id string) utils.Path {
+	return utils.PathBuilder{}.Base(utils.Root()).CD(ConsumerPath).CD(id).Create()
 }
