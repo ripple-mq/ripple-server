@@ -8,13 +8,13 @@ import (
 )
 
 type Server struct {
-	brokerServer    *broker.BrokerServer
-	bootstrapServer *bootsrrap.BootstrapServer
+	brokerServer    *broker.BootstrapServer
+	bootstrapServer *bootsrrap.InternalServer
 }
 
 func NewServer(baddr string, eaddr string) *Server {
-	brokerServer, _ := broker.NewBrokerServer(eaddr)
-	bootstrapServer, _ := bootsrrap.NewBoostrapServer(baddr)
+	brokerServer, _ := broker.NewBootstrapServer(eaddr)
+	bootstrapServer, _ := bootsrrap.NewInternalServer(baddr)
 
 	return &Server{brokerServer, bootstrapServer}
 }

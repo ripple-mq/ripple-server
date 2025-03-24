@@ -13,13 +13,13 @@ type Server struct {
 	pb.UnimplementedBootstrapServerServer
 }
 
-type BrokerServer struct {
+type BootstrapServer struct {
 	Addr     net.Addr
 	listener *net.Listener
 	server   *grpc.Server
 }
 
-func NewBrokerServer(addr string) (*BrokerServer, error) {
+func NewBootstrapServer(addr string) (*BootstrapServer, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -28,14 +28,14 @@ func NewBrokerServer(addr string) (*BrokerServer, error) {
 	s := grpc.NewServer()
 	pb.RegisterBootstrapServerServer(s, Server{})
 	reflection.Register(s)
-	return &BrokerServer{
+	return &BootstrapServer{
 		Addr:     listener.Addr(),
 		listener: &listener,
 		server:   s,
 	}, nil
 }
 
-func (t *BrokerServer) Listen() error {
+func (t *BootstrapServer) Listen() error {
 	go func() {
 		log.Infof("started bootstrap server metadata service, listening on port: %s", t.Addr)
 		if err := t.server.Serve(*t.listener); err != nil {
@@ -45,6 +45,6 @@ func (t *BrokerServer) Listen() error {
 	return nil
 }
 
-func (t *BrokerServer) Stop() {
+func (t *BootstrapServer) Stop() {
 	t.server.Stop()
 }
