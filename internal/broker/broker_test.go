@@ -10,7 +10,6 @@ package broker_test
 
 // 	"github.com/charmbracelet/log"
 // 	"github.com/ripple-mq/ripple-server/internal/broker"
-// 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 // 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 // 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 // 	"github.com/ripple-mq/ripple-server/pkg/utils"
@@ -19,12 +18,9 @@ package broker_test
 // type AskQuery struct {
 // 	Count int
 // 	ID    string
-// }
+////}
 
 // func TestCreateAndRunQueue(t *testing.T) {
-
-// 	lh, _ := lighthouse.GetLightHouse()
-// 	lh.Connect()
 
 // 	b := broker.NewBroker()
 // 	paddr, caddr := utils.RandLocalAddr(), utils.RandLocalAddr()
