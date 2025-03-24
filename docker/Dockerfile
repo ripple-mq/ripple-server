@@ -15,7 +15,7 @@ ARG final_image=scratch
 # out the current base)
 #
 #           FROM golang:1.21-alpine as builder
-FROM golang:1.21 as builder
+FROM docker.io/library/golang:1.21 AS builder
 
 # Setup environmet variables - chores.
 ENV GO111MODULE=on \

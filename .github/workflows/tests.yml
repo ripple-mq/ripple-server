@@ -17,6 +17,12 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    services:
+      third-party-service:
+        image: your-third-party-image
+        ports:
+          - 1234:1234  # Modify according to your service
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -29,5 +35,14 @@ jobs:
       - name: Install Dependencies
         run: go mod download
 
-      - name: Test
+      - name: Set up Docker Compose
+        run: docker compose -f docker-compose.test.yml up -d
+
+      - name: Wait for services to be ready
+        run: sleep 10  
+
+      - name: Run Tests
         run: go test ./... -race -coverprofile=coverage.txt -covermode=atomic -gcflags=-l
+
+      - name: Stop Docker Compose
+        run: docker compose -f docker-compose.test.yml down
