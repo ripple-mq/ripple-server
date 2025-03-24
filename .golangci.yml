@@ -13,7 +13,7 @@ output:
     - format: colored-line-number
 
 run:
-  go: 1.21
+  go: 1.23
   timeout: 2m
 
 issues:

@@ -115,6 +115,15 @@ docker-gen:
 		-t $(IMAGE):$(VERSION) . \
 		-f ./docker/Dockerfile
 
+.PHONY: podman-gen		
+podman-gen:
+	echo "Building podman image \`$(IMAGE):$(VERSION)\`..."
+	podman build --rm \
+		--build-arg final_image=scratch \
+		--build-arg build_mode=production \
+		-t $(IMAGE):$(VERSION) . \
+		-f ./docker/Dockerfile
+
 
 .PHONY: docker-debug
 ## `docker-debug`: Create debug-friendly docker images for `ripple-server`

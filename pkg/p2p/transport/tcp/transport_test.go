@@ -151,6 +151,8 @@ func TestTransport_Send(t *testing.T) {
 				}
 			}()
 
+			time.Sleep(1000 * time.Millisecond)
+
 			if err := client.Send(tt.serverAddr, "dummy metadata", tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Transport.Send() error = %v, wantErr %v", err, tt.wantErr)
 			}

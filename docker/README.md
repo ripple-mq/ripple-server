@@ -80,7 +80,7 @@ very minimal, which makes it difficult to debug applications - as an example, th
 production image cannot be `shell`-ed into!
 
 To resolve this, the [Makefile][makefile] allows you to create debug-friendly docker
-images. These images use `golang:1.21` as base for the final
+images. These images use `golang:1.23` as base for the final
 image. The resulting image is a lot larger compared to production images, at the same
 time, it comes with the tools you'll need to debug applications inside docker containers!
 

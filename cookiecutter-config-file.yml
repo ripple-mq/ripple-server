@@ -12,5 +12,5 @@ cookiecutter_inputs:
   private_project: "n"
   use_codecov: "n"
   use_precommit: "n"
-  go_version: "1.21"
+  go_version: "1.23"
   license: "MIT"
