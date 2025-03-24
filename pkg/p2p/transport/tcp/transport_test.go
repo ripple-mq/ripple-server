@@ -17,8 +17,15 @@ const (
 )
 
 func RandLocalAddr() string {
-	randomNumber := rand.Intn(maxPort-minPort) + minPort
-	return fmt.Sprintf(":%d", randomNumber)
+	for {
+		port := rand.Intn(maxPort-minPort) + minPort
+		addr := fmt.Sprintf(":%d", port)
+		ln, err := net.Listen("tcp", addr)
+		if err == nil {
+			ln.Close()
+			return addr
+		}
+	}
 }
 
 func dummyOnConnFunction(conn net.Conn, msg []byte) {
