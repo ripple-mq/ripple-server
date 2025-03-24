@@ -47,3 +47,15 @@ func (t *ConcurrentList[T]) Size() int {
 	defer t.mu.Unlock()
 	return len(t.list)
 }
+
+func (t *ConcurrentList[T]) Range(start int, end int) []T {
+	var data []T
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	end = min(end, len(t.list))
+	if start >= end {
+		return data
+	}
+	data = append(data, t.list[start:end]...)
+	return data
+}

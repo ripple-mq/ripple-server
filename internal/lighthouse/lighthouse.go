@@ -7,7 +7,6 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
-	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 	"github.com/samuel/go-zookeeper/zk"
 )
 
@@ -29,7 +28,7 @@ func (t *LigthHouse) Connect() {
 	if t.conn != nil && t.conn.State() == zk.StateHasSession {
 		return
 	}
-	conn, _, err := zk.Connect([]string{config.Conf.Zookeeper.Address}, time.Second)
+	conn, _, err := zk.Connect([]string{"localhost:2181"}, time.Second)
 	if err != nil {
 		log.Fatal("Failed to connect to Zookeeper:", err)
 	}
@@ -77,4 +76,28 @@ func (t *LigthHouse) RegisterSequential(path Path, data interface{}) Path {
 	}
 	pathSplits := strings.Split(ephemeralNodePath, "/")
 	return Path{Base: path.Base, Role: path.Role, Name: pathSplits[len(pathSplits)-1]}
+}
+
+func (t *LigthHouse) Read(path Path) ([]byte, error) {
+	err := t.EnsurePathExists(path.BasePath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read: %v", err)
+	}
+	data, _, err := t.conn.Get(path.FullPath())
+	if err != nil {
+		return nil, fmt.Errorf("error reading znode: %v", err)
+	}
+	return data, nil
+}
+
+func (t *LigthHouse) UpdateZnode(path Path, newData any) {
+	_, stat, err := t.conn.Get(path.FullPath())
+	if err != nil {
+		log.Fatalf("Failed to read znode before updating: %v", err)
+	}
+
+	_, err = t.conn.Set(path.FullPath(), utils.ToBytes(newData), stat.Version)
+	if err != nil {
+		log.Fatalf("Failed to update znode: %v", err)
+	}
 }

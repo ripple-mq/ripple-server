@@ -25,9 +25,6 @@ func (t *Transport) connectionLoop() {
 		}
 
 		t.addConnection(conn)
-		if t.OnAcceptingConn != nil {
-			t.OnAcceptingConn(conn)
-		}
 		go t.handleConnection(conn)
 
 	}
