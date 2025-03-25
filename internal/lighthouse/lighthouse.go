@@ -91,7 +91,7 @@ func (t *LigthHouse) Read(path u.Path) ([]byte, error) {
 	return data, nil
 }
 
-func (t *LigthHouse) UpdateZnode(path u.Path, newData any) {
+func (t *LigthHouse) Set(path u.Path, newData any) {
 	_, stat, err := t.conn.Get(u.PathBuilder{}.GetFile())
 	if err != nil {
 		log.Fatalf("Failed to read znode before updating: %v", err)

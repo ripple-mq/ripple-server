@@ -29,7 +29,7 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 	lh, _ := lighthouse.GetLightHouse()
 	data, _ := lh.Read(getConsumerPath(query.ID))
 	offset, _ := strconv.Atoi(string(data))
-	defer lh.UpdateZnode(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
+	defer lh.Set(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 
 	for {
 		messages := t.q.SubArray(offset, offset+query.Count)
