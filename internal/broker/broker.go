@@ -15,29 +15,45 @@ type PCServerAddr struct {
 }
 
 type Broker struct {
-	addr  PCServerAddr
-	topic tp.TopicBucket
+	addr   PCServerAddr
+	topic  tp.TopicBucket
+	server *server.Server
 }
 
 func NewBroker(topic tp.TopicBucket) *Broker {
 	paddr, caddr := utils.RandLocalAddr(), utils.RandLocalAddr()
-	return &Broker{PCServerAddr{paddr, caddr}, topic}
+	bs := server.NewServer(paddr, caddr)
+	return &Broker{PCServerAddr{paddr, caddr}, topic, bs}
 }
 
-func (t *Broker) Run() {
-	bs := server.NewServer()
-	bs.Listen(t.addr.Paddr, t.addr.Caddr)
+func (t *Broker) Run() error {
+	if err := t.server.Listen(); err != nil {
+		return err
+	}
 	t.registerAndStartWatching()
+
+	return nil
 }
 
 // TODO: Avoid re-registering topic/bucket
 // TODO: Cron job to push messages in batches to read replicas from leader
 func (t *Broker) registerAndStartWatching() {
-	lh, _ := lighthouse.GetLightHouse()
+	lh := lighthouse.GetLightHouse()
 	path := t.topic.GetPath()
 
-	followerPath := lh.RegisterAsFollower(path, t.addr)
-	lh.StartElectLoop(followerPath, t.addr, onBecommingLeader)
+	followerPath, err := lh.RegisterAsFollower(path, t.addr)
+	if err != nil {
+		return
+	}
+	fatalCh := lh.StartElectLoop(followerPath, t.addr, onBecommingLeader)
+	go t.RunCleanupLoop(fatalCh)
+}
+
+func (t *Broker) RunCleanupLoop(ch <-chan struct{}) {
+	for range ch {
+		t.server.Stop()
+		return
+	}
 }
 
 func onBecommingLeader(path lu.Path) {

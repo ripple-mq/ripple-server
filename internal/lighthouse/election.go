@@ -1,24 +1,23 @@
 package lighthouse
 
 import (
-	"log"
-
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 )
 
-func (t *LigthHouse) StartElectLoop(path utils.Path, data any, onBecommingLeader func(path utils.Path)) {
+func (t *LigthHouse) StartElectLoop(path utils.Path, data any, onBecommingLeader func(path utils.Path)) <-chan struct{} {
 	t.elector.Start(path, data)
 	go func() {
-		for range t.elector.Signal() {
+		for range t.elector.ListenForLeaderSignal() {
 			go onBecommingLeader(path)
 		}
 	}()
+	return t.elector.ListenForFatalSignal()
 }
 
-func (t *LigthHouse) RegisterAsFollower(path utils.Path, data any) utils.Path {
+func (t *LigthHouse) RegisterAsFollower(path utils.Path, data any) (utils.Path, error) {
 	path, err := t.elector.RegisterFollower(path, data)
 	if err != nil {
-		log.Fatal(err)
+		return utils.Path{}, err
 	}
-	return path
+	return path, nil
 }

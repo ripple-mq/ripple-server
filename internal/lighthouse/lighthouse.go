@@ -15,11 +15,11 @@ type LigthHouse struct {
 
 var ligthHouseInstance *LigthHouse
 
-func GetLightHouse() (*LigthHouse, error) {
+func GetLightHouse() *LigthHouse {
 	if ligthHouseInstance != nil {
-		return ligthHouseInstance, nil
+		return ligthHouseInstance
 	}
-	return new(), nil
+	return new()
 }
 
 func new() *LigthHouse {

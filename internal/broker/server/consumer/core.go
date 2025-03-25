@@ -32,7 +32,7 @@ func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 
 // TODO: offset will go wrong once i introduce TTL
 func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) {
-	lh, _ := lighthouse.GetLightHouse()
+	lh := lighthouse.GetLightHouse()
 	data, _ := lh.Read(getConsumerPath(query.ID))
 	offset, _ := strconv.Atoi(string(data))
 	defer lh.Write(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
@@ -60,7 +60,7 @@ func onAcceptingConsumer(conn net.Conn, id []byte) {
 }
 
 func registerConsumer(id string) {
-	lh, _ := lighthouse.GetLightHouse()
+	lh := lighthouse.GetLightHouse()
 	lh.RegisterSequential(getConsumerPath(id), strconv.Itoa(0))
 }
 

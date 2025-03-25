@@ -27,11 +27,7 @@ func Execute() {
 
 	log.Info(cfg)
 
-	lh, err := lighthouse.GetLightHouse()
-
-	if err != nil {
-		log.Errorf("Failed to get LightHouse: %v", err)
-	}
+	lh := lighthouse.GetLightHouse()
 
 	addr := RandLocalAddr()
 

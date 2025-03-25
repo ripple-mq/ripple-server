@@ -20,20 +20,18 @@ const (
 
 type LeaderElection struct {
 	leaderSignal chan struct{}
+	fatalSignal  chan struct{}
 	io           *io.IO
 }
 
 func NewLeaderElection(io *io.IO) *LeaderElection {
-	return &LeaderElection{io: io, leaderSignal: make(chan struct{}, 1)}
-}
-
-func (t *LeaderElection) Signal() <-chan struct{} {
-	return t.leaderSignal
+	return &LeaderElection{io: io, leaderSignal: make(chan struct{}, 1), fatalSignal: make(chan struct{}, 1)}
 }
 
 func (t *LeaderElection) Start(fpath u.Path, data any) {
 	if err := t.elect(fpath, data); err != nil {
-		log.Fatalf("failed to elect leader: %v", err)
+		log.Errorf("failed to elect leader: %v", err)
+		t.FatalSignal()
 	}
 	go t.watch(fpath, data)
 }
@@ -60,7 +58,7 @@ func (t *LeaderElection) elect(fpath u.Path, data any) error {
 		if _, err := t.RegisterLeader(u.PathBuilder{}.Base(fpath).CDBack().CDBack().Create(), data); err != nil {
 			return err
 		}
-		t.leaderSignal <- struct{}{}
+		t.LeaderSignal()
 	} else {
 		log.Infof("I am not the leader, my node is: %s\n  but leader: %s", fileName, followers[0])
 	}
@@ -69,6 +67,8 @@ func (t *LeaderElection) elect(fpath u.Path, data any) error {
 }
 
 func (t *LeaderElection) watch(fpath u.Path, data any) {
+	defer t.FatalSignal()
+
 	for {
 		leaderPath := u.PathBuilder{}.Base(fpath).CDBack().CDBack().CD(string(Leader)).GetFile()
 		children, ch, err := t.io.GetChildrenAndWatch(leaderPath)
@@ -107,4 +107,20 @@ func (t *LeaderElection) RegisterLeader(path u.Path, data any) (u.Path, error) {
 		return u.Path{}, fmt.Errorf("failed to register as leader: %v", err)
 	}
 	return path, nil
+}
+
+func (t *LeaderElection) ListenForLeaderSignal() <-chan struct{} {
+	return t.leaderSignal
+}
+
+func (t *LeaderElection) LeaderSignal() {
+	t.leaderSignal <- struct{}{}
+}
+
+func (t *LeaderElection) ListenForFatalSignal() <-chan struct{} {
+	return t.fatalSignal
+}
+
+func (t *LeaderElection) FatalSignal() {
+	t.fatalSignal <- struct{}{}
 }
