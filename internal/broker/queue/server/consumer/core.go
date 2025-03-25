@@ -11,6 +11,12 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 )
 
+// AskQuery needs a standard serialization to make it compatible with all language/frameworks
+type AskQuery struct {
+	Count int
+	ID    string
+}
+
 func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 	go func() {
 		for {
