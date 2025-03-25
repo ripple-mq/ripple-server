@@ -1,4 +1,4 @@
-package server
+package producer
 
 import (
 	"bytes"

@@ -1,4 +1,4 @@
-package server
+package consumer
 
 import (
 	"bytes"
@@ -35,7 +35,7 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 	lh, _ := lighthouse.GetLightHouse()
 	data, _ := lh.Read(getConsumerPath(query.ID))
 	offset, _ := strconv.Atoi(string(data))
-	defer lh.Set(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
+	defer lh.Write(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 
 	for {
 		messages := t.q.SubArray(offset, offset+query.Count)

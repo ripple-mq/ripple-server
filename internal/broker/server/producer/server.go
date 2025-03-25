@@ -1,4 +1,4 @@
-package server
+package producer
 
 import (
 	"net"
@@ -8,34 +8,32 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 )
 
-const ConsumerPath string = "/consumers"
-
-type ConsumerServer[T any] struct {
+type ProducerServer[T any] struct {
 	listenAddr net.Addr
 	server     *tcp.Transport
 	q          *queue.Queue[T]
 }
 
-func NewConsumerServer[T any](addr string, q *queue.Queue[T]) (*ConsumerServer[T], error) {
-	server, err := tcp.NewTransport(addr, onAcceptingConsumer)
+func NewProducerServer[T any](addr string, q *queue.Queue[T]) (*ProducerServer[T], error) {
+	server, err := tcp.NewTransport(addr, onAcceptingProdcuer)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ConsumerServer[T]{
+	return &ProducerServer[T]{
 		listenAddr: server.ListenAddr,
 		server:     server,
 		q:          q,
 	}, nil
 }
 
-func (t *ConsumerServer[T]) Listen() error {
+func (t *ProducerServer[T]) Listen() error {
 	err := t.server.Listen()
-	t.startAcceptingConsumeReq()
+	t.startPopulatingQueue()
 	return err
 }
 
-func (t *ConsumerServer[T]) Stop() {
+func (t *ProducerServer[T]) Stop() {
 	if err := t.server.Stop(); err != nil {
 		log.Errorf("failed to stop: %v", err)
 	}

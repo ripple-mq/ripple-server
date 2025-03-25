@@ -2,29 +2,44 @@ package broker
 
 import (
 	"github.com/charmbracelet/log"
-	"github.com/ripple-mq/ripple-server/internal/broker/queue"
-	cs "github.com/ripple-mq/ripple-server/internal/broker/queue/server/consumer"
-	ps "github.com/ripple-mq/ripple-server/internal/broker/queue/server/producer"
+	"github.com/ripple-mq/ripple-server/internal/broker/server"
+	"github.com/ripple-mq/ripple-server/internal/lighthouse"
+	lu "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
+	tp "github.com/ripple-mq/ripple-server/internal/topic"
+	"github.com/ripple-mq/ripple-server/pkg/utils"
 )
 
+type PCServerAddr struct {
+	Paddr string
+	Caddr string
+}
+
 type Broker struct {
+	addr  PCServerAddr
+	topic tp.TopicBucket
 }
 
-func NewBroker() *Broker {
-	return &Broker{}
+func NewBroker(topic tp.TopicBucket) *Broker {
+	paddr, caddr := utils.RandLocalAddr(), utils.RandLocalAddr()
+	return &Broker{PCServerAddr{paddr, caddr}, topic}
 }
 
-func (t *Broker) CreateAndRunQueue(paddr, caddr string) {
-	q := queue.NewQueue[[]byte]()
+func (t *Broker) Run() {
+	bs := server.NewServer()
+	bs.Listen(t.addr.Paddr, t.addr.Caddr)
+	t.registerAndStartWatching()
+}
 
-	p, _ := ps.NewProducerServer(paddr, q)
-	c, _ := cs.NewConsumerServer(caddr, q)
+// TODO: Avoid re-registering topic/bucket
+// TODO: Cron job to push messages in batches to read replicas from leader
+func (t *Broker) registerAndStartWatching() {
+	lh, _ := lighthouse.GetLightHouse()
+	path := t.topic.GetPath()
 
-	if err := p.Listen(); err != nil {
-		log.Errorf("failed to start producer server: %v", err)
-	}
-	if err := c.Listen(); err != nil {
-		log.Errorf("failed to start consumer server: %v", err)
-	}
+	followerPath := lh.RegisterAsFollower(path, t.addr)
+	lh.StartElectLoop(followerPath, t.addr, onBecommingLeader)
+}
 
+func onBecommingLeader(path lu.Path) {
+	log.Infof("Heyyyyy, I became leader: %v", path)
 }

@@ -28,19 +28,14 @@ func Execute() {
 	log.Info(cfg)
 
 	lh, err := lighthouse.GetLightHouse()
-	lh.Connect()
+
 	if err != nil {
 		log.Errorf("Failed to get LightHouse: %v", err)
 	}
 
 	addr := RandLocalAddr()
-	p := lh.RegisterFollower(utils.Path{Cmp: []string{"topics", "topic-0", "bucket-0"}}, addr)
 
-	if err := lh.ElectLeader(p, addr); err != nil {
-		log.Fatalf("failed to elect leader: %v", err)
-	}
-
-	go lh.WatchForLeader(p, addr)
+	lh.StartElectLoop(utils.Path{Cmp: []string{"topics", "topic-0", "bucket-0"}}, addr, func(path utils.Path) {})
 
 	// These functions demonstrate two separate checks to detect if the code is being
 	// run inside a docker container in debug mode, or production mode!
