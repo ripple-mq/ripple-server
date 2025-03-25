@@ -30,23 +30,25 @@ func (t *Broker) Run() error {
 	if err := t.server.Listen(); err != nil {
 		return err
 	}
-	t.registerAndStartWatching()
-
+	if err := t.registerAndStartWatching(); err != nil {
+		return err
+	}
 	return nil
 }
 
 // TODO: Avoid re-registering topic/bucket
 // TODO: Cron job to push messages in batches to read replicas from leader
-func (t *Broker) registerAndStartWatching() {
+func (t *Broker) registerAndStartWatching() error {
 	lh := lighthouse.GetLightHouse()
 	path := t.topic.GetPath()
 
 	followerPath, err := lh.RegisterAsFollower(path, t.addr)
 	if err != nil {
-		return
+		return err
 	}
 	fatalCh := lh.StartElectLoop(followerPath, t.addr, onBecommingLeader)
 	go t.RunCleanupLoop(fatalCh)
+	return nil
 }
 
 func (t *Broker) RunCleanupLoop(ch <-chan struct{}) {
