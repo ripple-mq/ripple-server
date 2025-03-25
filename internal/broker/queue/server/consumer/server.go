@@ -10,12 +10,6 @@ import (
 
 const ConsumerPath string = "/consumers"
 
-// AskQuery needs a standard serialization to make it compatible with all language/frameworks
-type AskQuery struct {
-	Count int
-	ID    string
-}
-
 type ConsumerServer[T any] struct {
 	listenAddr net.Addr
 	server     *tcp.Transport

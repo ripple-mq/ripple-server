@@ -11,6 +11,12 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 )
 
+// AskQuery needs a standard serialization to make it compatible with all language/frameworks
+type AskQuery struct {
+	Count int
+	ID    string
+}
+
 func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 	go func() {
 		for {
@@ -29,7 +35,7 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 	lh, _ := lighthouse.GetLightHouse()
 	data, _ := lh.Read(getConsumerPath(query.ID))
 	offset, _ := strconv.Atoi(string(data))
-	defer lh.UpdateZnode(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
+	defer lh.Set(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 
 	for {
 		messages := t.q.SubArray(offset, offset+query.Count)
