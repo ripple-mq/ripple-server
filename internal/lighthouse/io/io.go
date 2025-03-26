@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	u "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 	"github.com/samuel/go-zookeeper/zk"
 )
 
@@ -14,16 +15,26 @@ type IO struct {
 	conn *zk.Conn
 }
 
-func NewIO() *IO {
+var ioInstance *IO
+
+func GetIO() *IO {
+	if ioInstance != nil {
+		return ioInstance
+	}
+	return newIO()
+}
+
+func newIO() *IO {
 	return &IO{connect()}
 }
 
 func connect() *zk.Conn {
-	conn, _, err := zk.Connect([]string{"localhost:2181"}, time.Second)
+	conn, _, err := zk.Connect([]string{config.Conf.Zookeeper.Connection_url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms))
+
 	if err != nil {
 		log.Fatal("Failed to connect to Zookeeper:", err)
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(time.Duration(config.Conf.Zookeeper.Connection_wait_time_ms))
 	return conn
 }
 
