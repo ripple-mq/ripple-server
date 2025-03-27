@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
+	testutils "github.com/ripple-mq/ripple-server/test"
 )
 
 func TestPathBuilder_Base(t *testing.T) {
+	testutils.SetRoot()
 	type fields struct {
 		Cmp []string
 	}
@@ -44,6 +46,7 @@ func TestPathBuilder_Base(t *testing.T) {
 }
 
 func TestPathBuilder_CD(t *testing.T) {
+	testutils.SetRoot()
 	type fields struct {
 		Cmp []string
 	}
@@ -76,6 +79,7 @@ func TestPathBuilder_CD(t *testing.T) {
 }
 
 func TestPathBuilder_CDBack(t *testing.T) {
+	testutils.SetRoot()
 	type fields struct {
 		Cmp []string
 	}
@@ -108,6 +112,7 @@ func TestPathBuilder_CDBack(t *testing.T) {
 }
 
 func TestPathBuilder_FileName(t *testing.T) {
+	testutils.SetRoot()
 	type fields struct {
 		Cmp []string
 	}

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+
+	testutils "github.com/ripple-mq/ripple-server/test"
 )
 
 const (
@@ -17,6 +19,7 @@ func RandLocalAddr() string {
 }
 
 func TestNewInternalServer(t *testing.T) {
+	testutils.SetRoot()
 	type args struct {
 		addr string
 	}

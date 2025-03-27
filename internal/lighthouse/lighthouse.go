@@ -23,9 +23,9 @@ func GetLightHouse() *LigthHouse {
 }
 
 func new() *LigthHouse {
-	ioInstance := io.NewIO()
+	ioInstance := io.GetIO()
 	elector := election.NewLeaderElection(ioInstance)
-	ligthHouseInstance = &LigthHouse{io: io.NewIO(), elector: elector}
+	ligthHouseInstance = &LigthHouse{io: ioInstance, elector: elector}
 	return ligthHouseInstance
 }
 

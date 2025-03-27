@@ -1,2 +1,4 @@
 [Zookeeper]
-address="127.0.0.1:2181"
+connection_url="127.0.0.1:2181"
+connection_wait_time_ms=4000
+session_timeout_ms=4000
