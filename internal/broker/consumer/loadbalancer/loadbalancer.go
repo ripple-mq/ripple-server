@@ -9,6 +9,7 @@ func NewReadReqLoadBalancer() *ReadReqLoadBalancer {
 	return &ReadReqLoadBalancer{}
 }
 
+// TODO: Need to change loadbalancing strategy
 func (t *ReadReqLoadBalancer) GetIndex(n int) int {
 	return t.randomInt(0, n)
 }
