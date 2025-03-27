@@ -6,7 +6,6 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	lu "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	tp "github.com/ripple-mq/ripple-server/internal/topic"
-	"github.com/ripple-mq/ripple-server/pkg/utils"
 )
 
 type PCServerAddr struct {
@@ -15,22 +14,19 @@ type PCServerAddr struct {
 }
 
 type Broker struct {
-	addr   PCServerAddr
-	topic  tp.TopicBucket
-	server *server.Server
+	topic tp.TopicBucket
 }
 
 func NewBroker(topic tp.TopicBucket) *Broker {
-	paddr, caddr := utils.RandLocalAddr(), utils.RandLocalAddr()
-	bs := server.NewServer(paddr, caddr)
-	return &Broker{PCServerAddr{paddr, caddr}, topic, bs}
+	return &Broker{topic}
 }
 
-func (t *Broker) Run() error {
-	if err := t.server.Listen(); err != nil {
+func (t *Broker) Run(paddr, caddr string) error {
+	bs := server.NewServer(paddr, caddr)
+	if err := bs.Listen(); err != nil {
 		return err
 	}
-	if err := t.registerAndStartWatching(); err != nil {
+	if err := t.registerAndStartWatching(bs, PCServerAddr{Paddr: paddr, Caddr: caddr}); err != nil {
 		return err
 	}
 	return nil
@@ -38,22 +34,22 @@ func (t *Broker) Run() error {
 
 // TODO: Avoid re-registering topic/bucket
 // TODO: Cron job to push messages in batches to read replicas from leader
-func (t *Broker) registerAndStartWatching() error {
+func (t *Broker) registerAndStartWatching(bs *server.Server, addr PCServerAddr) error {
 	lh := lighthouse.GetLightHouse()
 	path := t.topic.GetPath()
 
-	followerPath, err := lh.RegisterAsFollower(path, t.addr)
+	followerPath, err := lh.RegisterAsFollower(path, addr)
 	if err != nil {
 		return err
 	}
-	fatalCh := lh.StartElectLoop(followerPath, t.addr, onBecommingLeader)
-	go t.RunCleanupLoop(fatalCh)
+	fatalCh := lh.StartElectLoop(followerPath, addr, onBecommingLeader)
+	go t.RunCleanupLoop(bs, fatalCh)
 	return nil
 }
 
-func (t *Broker) RunCleanupLoop(ch <-chan struct{}) {
+func (t *Broker) RunCleanupLoop(server *server.Server, ch <-chan struct{}) {
 	for range ch {
-		t.server.Stop()
+		server.Stop()
 		return
 	}
 }
