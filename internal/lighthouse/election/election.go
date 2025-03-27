@@ -124,6 +124,27 @@ func (t *LeaderElection) ReadLeader(path u.Path) ([]byte, error) {
 	return data, nil
 }
 
+func (t *LeaderElection) ReadFollowers(path u.Path) ([][]byte, error) {
+	followersDir := u.PathBuilder{}.Base(path).CD(string(Follower)).Create()
+	childs, err := t.io.GetChildren(followersDir)
+	if err != nil || len(childs) == 0 {
+		return nil, fmt.Errorf("no followers found: %v", err)
+	}
+
+	followers := [][]byte{}
+
+	for _, child := range childs {
+		followerPath := u.Path(u.PathBuilder{}.Base(followersDir).CD(child).Create())
+		if data, err := t.io.Read(followerPath); err == nil {
+			followers = append(followers, data)
+		}
+	}
+	if len(followers) == 0 {
+		return nil, fmt.Errorf("failed to read follower: %v", err)
+	}
+	return followers, nil
+}
+
 func (t *LeaderElection) ListenForLeaderSignal() <-chan struct{} {
 	return t.leaderSignal
 }
