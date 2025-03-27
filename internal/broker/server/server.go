@@ -3,9 +3,10 @@ package server
 import (
 	"fmt"
 
-	"github.com/ripple-mq/ripple-server/internal/broker/queue"
-	cs "github.com/ripple-mq/ripple-server/internal/broker/server/consumer"
-	ps "github.com/ripple-mq/ripple-server/internal/broker/server/producer"
+	c "github.com/ripple-mq/ripple-server/internal/broker/consumer"
+	cs "github.com/ripple-mq/ripple-server/internal/broker/consumer/server"
+	p "github.com/ripple-mq/ripple-server/internal/broker/producer"
+	ps "github.com/ripple-mq/ripple-server/internal/broker/producer/server"
 )
 
 type Server struct {
@@ -14,10 +15,9 @@ type Server struct {
 }
 
 func NewServer(paddr, caddr string) *Server {
-	q := queue.NewQueue[[]byte]()
 
-	p, _ := ps.NewProducerServer(paddr, q)
-	c, _ := cs.NewConsumerServer(caddr, q)
+	p, _ := p.NewProducer().ByteStreamingServer(paddr)
+	c, _ := c.NewConsumer().ByteStreamingServer(caddr)
 	return &Server{PS: p, CS: c}
 }
 

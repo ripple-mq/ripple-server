@@ -29,12 +29,11 @@ func newIO() *IO {
 }
 
 func connect() *zk.Conn {
-	conn, _, err := zk.Connect([]string{config.Conf.Zookeeper.Connection_url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms))
-
+	conn, _, err := zk.Connect([]string{config.Conf.Zookeeper.Connection_url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms*int(time.Millisecond)))
 	if err != nil {
 		log.Fatal("Failed to connect to Zookeeper:", err)
 	}
-	time.Sleep(time.Duration(config.Conf.Zookeeper.Connection_wait_time_ms))
+	time.Sleep(time.Duration(config.Conf.Zookeeper.Connection_wait_time_ms * int(time.Millisecond)))
 	return conn
 }
 
