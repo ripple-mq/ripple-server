@@ -1,4 +1,4 @@
-package consumer
+package server
 
 import (
 	"net"
