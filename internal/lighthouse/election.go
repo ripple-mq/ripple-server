@@ -21,3 +21,11 @@ func (t *LigthHouse) RegisterAsFollower(path utils.Path, data any) (utils.Path, 
 	}
 	return path, nil
 }
+
+func (t *LigthHouse) ReadLeader(path utils.Path) ([]byte, error) {
+	data, err := t.elector.ReadLeader(path)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
