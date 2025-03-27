@@ -14,8 +14,8 @@ func NewConsumer() *Consumer {
 	return &Consumer{}
 }
 
-func (t *Consumer) ByteStreamingServer(addr string) (*cs.ConsumerServer[[]byte], error) {
-	server, err := cs.NewConsumerServer(addr, queue.NewQueue[[]byte]())
+func (t *Consumer) ByteStreamingServer(addr string, q *queue.Queue[queue.Payload]) (*cs.ConsumerServer[queue.Payload], error) {
+	server, err := cs.NewConsumerServer(addr, q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to spin up server at %s: %v", addr, err)
 	}

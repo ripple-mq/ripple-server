@@ -17,10 +17,7 @@ type AskQuery struct {
 	ID    string
 }
 
-const ConsumerPath string = "/consumers"
-
-type Consumer struct {
-}
+const ConsumerPath string = "consumers"
 
 func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 	go func() {
@@ -38,9 +35,9 @@ func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 // TODO: offset will go wrong once i introduce TTL
 func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) {
 	lh := lighthouse.GetLightHouse()
-	data, _ := lh.Read(Consumer{}.getConsumerPath(query.ID))
+	data, _ := lh.Read(getConsumerPath(query.ID))
 	offset, _ := strconv.Atoi(string(data))
-	defer lh.Write(Consumer{}.getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
+	defer lh.Write(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 
 	for {
 		messages := t.q.SubArray(offset, offset+query.Count)
@@ -61,14 +58,15 @@ func onAcceptingConsumer(conn net.Conn, id []byte) {
 		log.Warnf("error reading data: %v", err)
 	}
 	log.Infof("Accepting consumer: %s %s", conn.RemoteAddr(), ID)
-	Consumer{}.registerConsumer(ID)
+	registerConsumer(ID)
 }
 
-func (t Consumer) registerConsumer(id string) {
+func registerConsumer(id string) {
 	lh := lighthouse.GetLightHouse()
-	lh.RegisterSequential(t.getConsumerPath(id), strconv.Itoa(0))
+	path := getConsumerPath(id)
+	lh.RegisterSequential(path, strconv.Itoa(0))
 }
 
-func (t Consumer) getConsumerPath(id string) utils.Path {
+func getConsumerPath(id string) utils.Path {
 	return utils.PathBuilder{}.Base(utils.Root()).CD(ConsumerPath).CD(id).Create()
 }

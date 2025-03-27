@@ -7,17 +7,18 @@ import (
 	cs "github.com/ripple-mq/ripple-server/internal/broker/consumer/server"
 	p "github.com/ripple-mq/ripple-server/internal/broker/producer"
 	ps "github.com/ripple-mq/ripple-server/internal/broker/producer/server"
+	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 )
 
 type Server struct {
-	PS *ps.ProducerServer[[]byte]
-	CS *cs.ConsumerServer[[]byte]
+	PS *ps.ProducerServer[queue.Payload]
+	CS *cs.ConsumerServer[queue.Payload]
 }
 
 func NewServer(paddr, caddr string) *Server {
-
-	p, _ := p.NewProducer().ByteStreamingServer(paddr)
-	c, _ := c.NewConsumer().ByteStreamingServer(caddr)
+	q := queue.NewQueue[queue.Payload]()
+	p, _ := p.NewProducer().ByteStreamingServer(paddr, q)
+	c, _ := c.NewConsumer().ByteStreamingServer(caddr, q)
 	return &Server{PS: p, CS: c}
 }
 

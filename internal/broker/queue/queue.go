@@ -6,6 +6,10 @@ type Queue[T any] struct {
 	q *collection.ConcurrentList[T]
 }
 
+type Payload struct {
+	Data []byte
+}
+
 func NewQueue[T any]() *Queue[T] {
 	return &Queue[T]{
 		q: collection.NewConcurrentList[T](),

@@ -14,10 +14,14 @@ func NewProducer() *Producer {
 	return &Producer{}
 }
 
-func (t *Producer) ByteStreamingServer(addr string) (*ps.ProducerServer[[]byte], error) {
-	server, err := ps.NewProducerServer(addr, queue.NewQueue[[]byte]())
+func (t *Producer) ByteStreamingServer(addr string, q *queue.Queue[queue.Payload]) (*ps.ProducerServer[queue.Payload], error) {
+	server, err := ps.NewProducerServer(addr, q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to spin up server at %s: %v", addr, err)
 	}
 	return server, nil
+}
+
+func (t *Producer) GetServerConnection(topic string, bucket string) (string, error) {
+	return "", nil
 }

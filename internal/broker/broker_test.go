@@ -10,6 +10,8 @@ package broker_test
 
 // 	"github.com/charmbracelet/log"
 // 	"github.com/ripple-mq/ripple-server/internal/broker"
+// 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
+// 	"github.com/ripple-mq/ripple-server/internal/topic"
 // 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 // 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 // 	"github.com/ripple-mq/ripple-server/pkg/utils"
@@ -18,13 +20,14 @@ package broker_test
 // type AskQuery struct {
 // 	Count int
 // 	ID    string
-////}
+// }
 
 // func TestCreateAndRunQueue(t *testing.T) {
 
-// 	b := broker.NewBroker()
+// 	b := broker.NewBroker(topic.TopicBucket{TopicName: "t0", BucketName: "b0"})
+
 // 	paddr, caddr := utils.RandLocalAddr(), utils.RandLocalAddr()
-// 	b.CreateAndRunQueue(paddr, caddr)
+// 	b.Run(paddr, caddr)
 
 // 	client, _ := tcp.NewTransport(":9000", func(conn net.Conn, msg []byte) {})
 
@@ -36,7 +39,7 @@ package broker_test
 // 			if err != nil {
 // 				t.Errorf("failed to encode: %v", err)
 // 			}
-// 			if err := client.Send(paddr, struct{}{}, buff.Bytes()); err != nil {
+// 			if err := client.Send(paddr, struct{}{}, queue.Payload{Data: buff.Bytes()}); err != nil {
 // 				t.Errorf("failed to send: %v", err)
 // 			}
 // 			i++
@@ -49,7 +52,7 @@ package broker_test
 
 // 	go func() {
 // 		for {
-// 			var msg [][]byte
+// 			var msg []queue.Payload
 // 			addr, err := client.Consume(encoder.GOBDecoder{}, &msg)
 // 			if err != nil {
 // 				log.Warnf("error: %v", err)
@@ -57,7 +60,7 @@ package broker_test
 // 			var msgs []string
 // 			for _, i := range msg {
 // 				var m string
-// 				err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(i), &m)
+// 				err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(i.Data), &m)
 // 				if err != nil {
 // 					t.Errorf("failed to decode: %v", err)
 // 				}
