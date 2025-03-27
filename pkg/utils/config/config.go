@@ -15,6 +15,10 @@ type Config struct {
 		Connection_wait_time_ms int
 		Session_timeout_ms      int
 	}
+	Server struct {
+		Internal_grpc_port int
+		Exposed_grpc_port  int
+	}
 }
 
 var Conf, _ = LoadConfig(".")
