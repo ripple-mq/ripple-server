@@ -8,8 +8,6 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 )
 
-const ConsumerPath string = "/consumers"
-
 type ConsumerServer[T any] struct {
 	listenAddr net.Addr
 	server     *tcp.Transport
