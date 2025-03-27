@@ -38,7 +38,7 @@ func (t *LeaderElection) Start(fpath u.Path, data any) {
 
 func (t *LeaderElection) elect(fpath u.Path, data any) error {
 
-	followersPath := u.PathBuilder{}.Base(fpath).CDBack().GetFile()
+	followersPath := u.PathBuilder{}.Base(fpath).CDBack().Create()
 	followers, err := t.io.GetChildren(followersPath)
 	if err != nil {
 		return fmt.Errorf("failed to get childrens of %s, %v", followersPath, err)
@@ -70,10 +70,10 @@ func (t *LeaderElection) watch(fpath u.Path, data any) {
 	defer t.FatalSignal()
 
 	for {
-		leaderPath := u.PathBuilder{}.Base(fpath).CDBack().CDBack().CD(string(Leader)).GetFile()
+		leaderPath := u.PathBuilder{}.Base(fpath).CDBack().CDBack().CD(string(Leader)).Create()
 		children, ch, err := t.io.GetChildrenAndWatch(leaderPath)
 		if err != nil {
-			log.Errorf("failed to get childrens of %s, %v", leaderPath, err)
+			log.Errorf("failed to get childrens of %v, %v", leaderPath, err)
 			return
 		}
 		if len(children) > 0 {
@@ -107,6 +107,21 @@ func (t *LeaderElection) RegisterLeader(path u.Path, data any) (u.Path, error) {
 		return u.Path{}, fmt.Errorf("failed to register as leader: %v", err)
 	}
 	return path, nil
+}
+
+func (t *LeaderElection) ReadLeader(path u.Path) ([]byte, error) {
+	leaderDir := u.PathBuilder{}.Base(path).CD(string(Leader)).Create()
+	childs, err := t.io.GetChildren(leaderDir)
+	if err != nil || len(childs) == 0 {
+		return nil, fmt.Errorf("no leader found: %v", err)
+	}
+
+	leaderPath := u.Path(u.PathBuilder{}.Base(leaderDir).CD(childs[0]).Create())
+	data, err := t.io.Read(leaderPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read leader: %v", err)
+	}
+	return data, nil
 }
 
 func (t *LeaderElection) ListenForLeaderSignal() <-chan struct{} {

@@ -1,16 +1,25 @@
 package broker
 
 import (
+	"bytes"
+
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/server"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	lu "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	tp "github.com/ripple-mq/ripple-server/internal/topic"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 )
 
 type PCServerAddr struct {
 	Paddr string
 	Caddr string
+}
+
+func DecodeToPCServerAddr(data []byte) (PCServerAddr, error) {
+	var addr PCServerAddr
+	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(data), &addr)
+	return addr, err
 }
 
 type Broker struct {

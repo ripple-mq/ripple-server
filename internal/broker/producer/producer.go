@@ -5,6 +5,8 @@ import (
 
 	ps "github.com/ripple-mq/ripple-server/internal/broker/producer/server"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
+	"github.com/ripple-mq/ripple-server/internal/lighthouse"
+	tp "github.com/ripple-mq/ripple-server/internal/topic"
 )
 
 type Producer struct {
@@ -22,6 +24,12 @@ func (t *Producer) ByteStreamingServer(addr string, q *queue.Queue[queue.Payload
 	return server, nil
 }
 
-func (t *Producer) GetServerConnection(topic string, bucket string) (string, error) {
-	return "", nil
+func (t *Producer) GetServerConnection(topicName string, bucketName string) ([]byte, error) {
+	topicPath := tp.TopicBucket{TopicName: topicName, BucketName: bucketName}.GetPath()
+	lh := lighthouse.GetLightHouse()
+	data, err := lh.ReadLeader(topicPath)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }

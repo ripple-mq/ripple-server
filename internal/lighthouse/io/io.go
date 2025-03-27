@@ -62,6 +62,7 @@ func (t *IO) EnsurePathExists(path string) error {
 			}
 		}
 	}
+	log.Infof("PATH: %s", fullPath)
 	return nil
 }
 
@@ -103,16 +104,16 @@ func (t *IO) Write(path u.Path, newData any) error {
 	return nil
 }
 
-func (t *IO) GetChildrenAndWatch(path string) ([]string, <-chan zk.Event, error) {
-	children, _, ch, err := t.conn.ChildrenW(path)
+func (t *IO) GetChildrenAndWatch(path u.Path) ([]string, <-chan zk.Event, error) {
+	children, _, ch, err := t.conn.ChildrenW(u.PathBuilder{}.Base(path).GetFile())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get & watch : %v %s", err, path)
 	}
 	return children, ch, nil
 }
 
-func (t *IO) GetChildren(path string) ([]string, error) {
-	children, _, err := t.conn.Children(path)
+func (t *IO) GetChildren(path u.Path) ([]string, error) {
+	children, _, err := t.conn.Children(u.PathBuilder{}.Base(path).GetFile())
 	if err != nil || len(children) == 0 {
 		return nil, fmt.Errorf("failed to get childrens: %v %s", err, path)
 	}
