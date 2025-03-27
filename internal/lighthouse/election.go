@@ -29,3 +29,11 @@ func (t *LigthHouse) ReadLeader(path utils.Path) ([]byte, error) {
 	}
 	return data, nil
 }
+
+func (t *LigthHouse) ReadFollowers(path utils.Path) ([][]byte, error) {
+	data, err := t.elector.ReadFollowers(path)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
