@@ -16,8 +16,12 @@ type Config struct {
 		Session_timeout_ms      int
 	}
 	Server struct {
-		Internal_grpc_port int
-		Exposed_grpc_port  int
+		Internal_grpc_addr string
+		Exposed_grpc_addr  string
+		Client_grpc_addr   string
+	}
+	Topic struct {
+		Replicas int
 	}
 }
 

@@ -1,6 +1,7 @@
 package lighthouse
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/election"
@@ -65,4 +66,21 @@ func (t *LigthHouse) Read(path u.Path) ([]byte, error) {
 // Stores the provided data at the specified path.
 func (t *LigthHouse) Write(path u.Path, newData any) {
 	t.io.Write(path, newData)
+}
+
+func (t *LigthHouse) ReadAllChildsData(path u.Path) ([][]byte, error) {
+	addrs, err := t.io.GetChildren(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read childs: %v", err)
+	}
+	var data [][]byte
+	for _, addr := range addrs {
+		fullPath := u.Path(u.PathBuilder{}.Base(u.Root()).CD(addr).Create())
+		b, err := t.io.Read(fullPath)
+		if err != nil {
+			continue
+		}
+		data = append(data, b)
+	}
+	return data, nil
 }
