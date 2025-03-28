@@ -54,7 +54,9 @@ func (t *Server) Listen() error {
 	return nil
 }
 
-// Stop stops existing pub/sub servers
+// Stop stops existing pub/sub servers accepting new connections
+//
+// Note: existing connection will continue to serve
 func (t *Server) Stop() {
 	t.PS.Stop()
 	t.CS.Stop()

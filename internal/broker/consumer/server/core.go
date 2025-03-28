@@ -19,6 +19,9 @@ type AskQuery struct {
 
 const ConsumerPath string = "consumers"
 
+// startPopulatingQueue accepts new Ask query & handles asynchronously
+//
+//	Async
 func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 	go func() {
 		for {
@@ -32,6 +35,14 @@ func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 	}()
 }
 
+// handleConsumeReq streams message in specified batch size
+//
+//	Async
+//
+// Parameters:
+//   - query(AskQuery): Holds max batch size & consumer ID
+//   - clientAddr(string)
+//
 // TODO: offset will go wrong once i introduce TTL
 func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) {
 	lh := lighthouse.GetLightHouse()
@@ -51,6 +62,12 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 	}
 }
 
+// onAcceptingConsumer runs on accepting new Consumer connection, registers Consumer
+// lighthouse with `offset` set to 0
+//
+// Parameters:
+//   - conn (net.Conn)
+//   - msg ([]byte): metadata sent by client
 func onAcceptingConsumer(conn net.Conn, id []byte) {
 	var ID string
 	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(id), &ID)
