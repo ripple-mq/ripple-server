@@ -2,6 +2,7 @@ package queue
 
 import "github.com/ripple-mq/ripple-server/pkg/utils/collection"
 
+// Queue[T] holds thread safe queue
 type Queue[T any] struct {
 	q *collection.ConcurrentList[T]
 }

@@ -10,11 +10,29 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 )
 
+// Server holds bothe Pub/Sub server
 type Server struct {
-	PS *ps.ProducerServer[queue.Payload]
-	CS *cs.ConsumerServer[queue.Payload]
+	PS *ps.ProducerServer[queue.Payload] // Producer server instance
+	CS *cs.ConsumerServer[queue.Payload] // Consumer server instance
 }
 
+// NewServer creates and returns a new Pub/Sub server instance.
+//
+// It initializes a new producer and consumer.
+// Note: It doesn't start listening.
+//
+// It is advised to Listen() asap to avoid busy port error.
+//
+// Parameters:
+//   - paddr (string): Producer server address.
+//   - caddr (string): Consumer server address.
+//
+// Returns:
+//   - *Server.
+//
+// Example usage:
+//
+//	server := NewServer("localhost:8080", "localhost:8081")
 func NewServer(paddr, caddr string) *Server {
 	q := queue.NewQueue[queue.Payload]()
 	p, _ := p.NewProducer().ByteStreamingServer(paddr, q)
@@ -22,6 +40,10 @@ func NewServer(paddr, caddr string) *Server {
 	return &Server{PS: p, CS: c}
 }
 
+// Listen spins up pub/sub servers at specified ports.
+//
+// Returns:
+//   - error
 func (t *Server) Listen() error {
 
 	if err := t.PS.Listen(); err != nil {
@@ -33,6 +55,9 @@ func (t *Server) Listen() error {
 	return nil
 }
 
+// Stop stops existing pub/sub servers accepting new connections
+//
+// Note: existing connection will continue to serve
 func (t *Server) Stop() {
 	t.PS.Stop()
 	t.CS.Stop()
