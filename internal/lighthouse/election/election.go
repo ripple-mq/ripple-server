@@ -24,10 +24,17 @@ type LeaderElection struct {
 	io           *io.IO
 }
 
+// NewLeaderElection returns *LeaderElection
+//
+// Returns:
+//   - *LeaderElection
 func NewLeaderElection(io *io.IO) *LeaderElection {
 	return &LeaderElection{io: io, leaderSignal: make(chan struct{}, 1), fatalSignal: make(chan struct{}, 1)}
 }
 
+// Start starts electing leader
+//
+//	Async
 func (t *LeaderElection) Start(fpath u.Path, data any) {
 	if err := t.elect(fpath, data); err != nil {
 		log.Errorf("failed to elect leader: %v", err)
@@ -36,6 +43,12 @@ func (t *LeaderElection) Start(fpath u.Path, data any) {
 	go t.watch(fpath, data)
 }
 
+// elect makes an attemt to become leader
+//
+//	Async
+//
+// Returns:
+//   - error
 func (t *LeaderElection) elect(fpath u.Path, data any) error {
 
 	followersPath := u.PathBuilder{}.Base(fpath).CDBack().Create()
@@ -66,6 +79,9 @@ func (t *LeaderElection) elect(fpath u.Path, data any) error {
 	return nil
 }
 
+// watch looks for changes in leaders
+//
+//	Async
 func (t *LeaderElection) watch(fpath u.Path, data any) {
 	defer t.FatalSignal()
 
