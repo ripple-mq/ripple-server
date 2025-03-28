@@ -2,3 +2,7 @@
 connection_url="127.0.0.1:2181"
 connection_wait_time_ms=4000
 session_timeout_ms=400000000000
+
+[Server]
+internal_grpc_port=8000
+exposed_grpc_port=8080
