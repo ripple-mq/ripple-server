@@ -9,9 +9,9 @@ import (
 )
 
 type ConsumerServer[T any] struct {
-	listenAddr net.Addr
-	server     *tcp.Transport
-	q          *queue.Queue[T]
+	listenAddr net.Addr        // listening address
+	server     *tcp.Transport  // Consumer server instance
+	q          *queue.Queue[T] // thread safe message queue
 }
 
 // NewConsumerServer[T] creates Sub server to accept data of type T

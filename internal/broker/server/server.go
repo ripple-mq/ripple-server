@@ -10,9 +10,10 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 )
 
+// Server holds bothe Pub/Sub server
 type Server struct {
-	PS *ps.ProducerServer[queue.Payload]
-	CS *cs.ConsumerServer[queue.Payload]
+	PS *ps.ProducerServer[queue.Payload] // Producer server instance
+	CS *cs.ConsumerServer[queue.Payload] // Consumer server instance
 }
 
 // NewServer creates and returns a new Pub/Sub server instance.

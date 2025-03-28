@@ -11,11 +11,13 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 )
 
+// PCServerAddr holds Pub/Sub server addresses
 type PCServerAddr struct {
-	Paddr string
-	Caddr string
+	Paddr string // Producer address
+	Caddr string // Consumer address
 }
 
+// DecodeToPCServerAddr decodes bytes to `PCServerAddr`
 func DecodeToPCServerAddr(data []byte) (PCServerAddr, error) {
 	var addr PCServerAddr
 	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(data), &addr)
