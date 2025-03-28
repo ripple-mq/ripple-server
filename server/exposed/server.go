@@ -13,12 +13,15 @@ type Server struct {
 	pb.UnimplementedBootstrapServerServer
 }
 
+// BootstrapServer represents a server for bootstrapping connections.
+// It holds the address, listener, and gRPC server instances.
 type BootstrapServer struct {
 	Addr     net.Addr
 	listener *net.Listener
 	server   *grpc.Server
 }
 
+// NewBootstrapServer creates and returns a new BootstrapServer instance.
 func NewBootstrapServer(addr string) (*BootstrapServer, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -35,6 +38,7 @@ func NewBootstrapServer(addr string) (*BootstrapServer, error) {
 	}, nil
 }
 
+// Listen starts the bootstrap server and begins serving metadata requests.
 func (t *BootstrapServer) Listen() error {
 	go func() {
 		log.Infof("started bootstrap server metadata service, listening on port: %s", t.Addr)
@@ -45,6 +49,7 @@ func (t *BootstrapServer) Listen() error {
 	return nil
 }
 
+// Stop stops gRPC server
 func (t *BootstrapServer) Stop() {
 	t.server.Stop()
 }

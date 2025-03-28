@@ -19,9 +19,10 @@ type AskQuery struct {
 
 const ConsumerPath string = "consumers"
 
-// startPopulatingQueue accepts new Ask query & handles asynchronously
+// startAcceptingConsumeReq listens for incoming Ask queries and handles each request asynchronously.
 //
-//	Async
+// It continuously consumes requests and processes asynchronously. Any failed request
+// is ignored, and the function keeps listening for new ones.
 func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 	go func() {
 		for {
@@ -35,15 +36,12 @@ func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 	}()
 }
 
-// handleConsumeReq streams message in specified batch size
+// handleConsumeReq streams messages to the client in the specified batch size.
 //
-//	Async
+// It retrieves a batch of messages based on the current offset and sends them to the client.
+// The offset is updated after each batch.
 //
-// Parameters:
-//   - query(AskQuery): Holds max batch size & consumer ID
-//   - clientAddr(string)
-//
-// TODO: offset will go wrong once i introduce TTL
+// TODO: Offset handling may need adjustment once TTL is introduced.
 func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) {
 	lh := lighthouse.GetLightHouse()
 	data, _ := lh.Read(getConsumerPath(query.ID))
@@ -62,12 +60,7 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 	}
 }
 
-// onAcceptingConsumer runs on accepting new Consumer connection, registers Consumer
-// lighthouse with `offset` set to 0
-//
-// Parameters:
-//   - conn (net.Conn)
-//   - msg ([]byte): metadata sent by client
+// onAcceptingConsumer handles a new consumer connection and registers the consumer.
 func onAcceptingConsumer(conn net.Conn, id []byte) {
 	var ID string
 	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(id), &ID)

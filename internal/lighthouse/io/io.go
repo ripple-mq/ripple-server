@@ -28,7 +28,10 @@ func newIO() *IO {
 	return &IO{connect()}
 }
 
-// connect connects to zookeeper
+// connect establishes a connection to Zookeeper using the configuration settings.
+//
+// It returns a pointer to a Zookeeper connection. If the connection fails, the application
+// will log a fatal error and terminate.
 func connect() *zk.Conn {
 	conn, _, err := zk.Connect([]string{config.Conf.Zookeeper.Connection_url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms*int(time.Millisecond)))
 	if err != nil {
@@ -38,13 +41,10 @@ func connect() *zk.Conn {
 	return conn
 }
 
-// EnsurePathExists checks whether `path` exists or not, if not create one
+// EnsurePathExists checks if the specified `path` exists in Zookeeper,
+// and creates it if it does not.
 //
-// Parameters:
-//   - path(string)
-//
-// Returns:
-//   - error
+// It traverses the path segments and creates each intermediate directory if needed.
 func (t *IO) EnsurePathExists(path string) error {
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 {
@@ -74,17 +74,12 @@ func (t *IO) EnsurePathExists(path string) error {
 	return nil
 }
 
-// RegisterSequential registers sequential ephemeral node
+// RegisterSequential registers a sequential ephemeral node at the specified path.
 //
-// Note: It will be removed automatically when connection goes down
+// Note: The node will be automatically removed when the connection goes down.
 //
-// Parameters:
-//   - path(u.Path)
-//   - data(any)
-//
-// Returns:
-//   - u.Path
-//   - error
+// It ensures the existence of the parent path and creates a sequential ephemeral node
+// with the provided data.
 func (t *IO) RegisterSequential(path u.Path, data any) (u.Path, error) {
 	err := t.EnsurePathExists(u.PathBuilder{}.Base(path).GetDir())
 	if err != nil {
@@ -98,9 +93,12 @@ func (t *IO) RegisterSequential(path u.Path, data any) (u.Path, error) {
 	return u.Path{Cmp: strings.Split(ephemeralNodePath, "/")[1:]}, nil
 }
 
-// Read data from given path
+// Read retrieves data from the specified path.
 //
-// Note: it will create path if doesn't exists
+// Note: If the path doesn't exist, it will be created.
+//
+// This function ensures the existence of the path and then reads the data from the
+// given node in the Lighthouse.
 func (t *IO) Read(path u.Path) ([]byte, error) {
 	err := t.EnsurePathExists(u.PathBuilder{}.Base(path).GetDir())
 	if err != nil {
@@ -108,14 +106,17 @@ func (t *IO) Read(path u.Path) ([]byte, error) {
 	}
 	data, _, err := t.conn.Get(u.PathBuilder{}.Base(path).GetFile())
 	if err != nil {
-		return nil, fmt.Errorf("error reading znode: %v", err)
+		return nil, fmt.Errorf("error reading node: %v", err)
 	}
 	return data, nil
 }
 
-// Write data at given path
+// Write stores data at the specified path.
 //
-// Note: it will create path if doesn't exists
+// Note: If the path does not exist, it will be created before writing the data.
+//
+// This function first checks if the path exists and then updates the node with
+// the new data. If the node doesn’t exist, it creates the path and writes the data.
 func (t *IO) Write(path u.Path, newData any) error {
 	_, stat, err := t.conn.Get(u.PathBuilder{}.GetFile())
 	if err != nil {
@@ -129,7 +130,8 @@ func (t *IO) Write(path u.Path, newData any) error {
 	return nil
 }
 
-// GetChildrenAndWatch returns list of childrens at given `path` & `ch` to watch changes
+// GetChildrenAndWatch retrieves the list of children at the given path and
+// returns a channel to watch for changes.
 func (t *IO) GetChildrenAndWatch(path u.Path) ([]string, <-chan zk.Event, error) {
 	children, _, ch, err := t.conn.ChildrenW(u.PathBuilder{}.Base(path).GetFile())
 	if err != nil {
@@ -138,7 +140,7 @@ func (t *IO) GetChildrenAndWatch(path u.Path) ([]string, <-chan zk.Event, error)
 	return children, ch, nil
 }
 
-// GetChildrenAndWatch returns list of childrens at given `path`
+// GetChildren retrieves the list of children at the specified path.
 func (t *IO) GetChildren(path u.Path) ([]string, error) {
 	children, _, err := t.conn.Children(u.PathBuilder{}.Base(path).GetFile())
 	if err != nil || len(children) == 0 {

@@ -14,15 +14,10 @@ type ProducerServer[T any] struct {
 	q          *queue.Queue[T] // thread safe message queue
 }
 
-// NewProducerServer[T] creates Pub server to accept data of type T
+// NewProducerServer creates a new ProducerServer to accept data of type T.
 //
-// Parameters:
-//   - addr(string): address to listen at
-//   - q(*queue.Queue[T]): message queue
-//
-// Returns:
-//   - *ProducerServer[T]
-//   - error
+// It initializes a server to listen on the specified address and uses the given
+// message queue for processing the data.
 func NewProducerServer[T any](addr string, q *queue.Queue[T]) (*ProducerServer[T], error) {
 	server, err := tcp.NewTransport(addr, onAcceptingProdcuer)
 	if err != nil {
@@ -36,10 +31,7 @@ func NewProducerServer[T any](addr string, q *queue.Queue[T]) (*ProducerServer[T
 	}, nil
 }
 
-// Listen starts Pub server & starts populating data to message queue
-//
-// Returns:
-//   - error
+// Listen starts the Pub server and begins populating data to the message queue.
 func (t *ProducerServer[T]) Listen() error {
 	err := t.server.Listen()
 	t.startPopulatingQueue()
@@ -47,6 +39,8 @@ func (t *ProducerServer[T]) Listen() error {
 }
 
 // Stop stops listening to new Producer connections
+//
+// Note: It still continues to serve existing connections
 func (t *ProducerServer[T]) Stop() {
 	if err := t.server.Stop(); err != nil {
 		log.Errorf("failed to stop: %v", err)

@@ -25,16 +25,15 @@ type LeaderElection struct {
 }
 
 // NewLeaderElection returns *LeaderElection
-//
-// Returns:
-//   - *LeaderElection
 func NewLeaderElection(io *io.IO) *LeaderElection {
 	return &LeaderElection{io: io, leaderSignal: make(chan struct{}, 1), fatalSignal: make(chan struct{}, 1)}
 }
 
-// Start starts electing leader
+// Start begins the leader election process.
 //
-//	Async
+// It initiates the leader election by calling `elect`, logs an error if it fails,
+// and triggers the fatal signal. It also starts watching the leader election
+// process in a separate goroutine.
 func (t *LeaderElection) Start(fpath u.Path, data any) {
 	if err := t.elect(fpath, data); err != nil {
 		log.Errorf("failed to elect leader: %v", err)
@@ -43,12 +42,10 @@ func (t *LeaderElection) Start(fpath u.Path, data any) {
 	go t.watch(fpath, data)
 }
 
-// elect makes an attemt to become leader
+// elect attempts to become the leader by selecting the smallest follower.
 //
-//	Async
-//
-// Returns:
-//   - error
+// It checks the followers' list, sorts them, and if the current node is the smallest,
+// it registers itself as the leader and signals leadership. Otherwise, it logs the current leader.
 func (t *LeaderElection) elect(fpath u.Path, data any) error {
 
 	followersPath := u.PathBuilder{}.Base(fpath).CDBack().Create()
@@ -79,9 +76,10 @@ func (t *LeaderElection) elect(fpath u.Path, data any) error {
 	return nil
 }
 
-// watch looks for changes in leaders
+// watch monitors changes in the leader's status and re-elects if needed.
 //
-//	Async
+// It listens for changes in the leader's path and triggers a re-election process
+// whenever the leader changes.
 func (t *LeaderElection) watch(fpath u.Path, data any) {
 	defer t.FatalSignal()
 
@@ -107,6 +105,10 @@ func (t *LeaderElection) watch(fpath u.Path, data any) {
 	}
 }
 
+// RegisterFollower registers the current node as a follower at the given path.
+//
+// It creates a new path for the follower, registers it sequentially,
+// and returns the path if successful, or an error if the registration fails.
 func (t *LeaderElection) RegisterFollower(path u.Path, data any) (u.Path, error) {
 	path = u.PathBuilder{}.Base(path).CD(string(Follower)).Create()
 	path, err := t.io.RegisterSequential(path, data)
@@ -116,6 +118,10 @@ func (t *LeaderElection) RegisterFollower(path u.Path, data any) (u.Path, error)
 	return path, nil
 }
 
+// RegisterLeader registers the current node as the leader at the given path.
+//
+// It creates a new path for the leader, registers it sequentially,
+// and returns the path if successful, or an error if the registration fails.
 func (t *LeaderElection) RegisterLeader(path u.Path, data any) (u.Path, error) {
 	path = u.PathBuilder{}.Base(path).CD(string(Leader)).Create()
 	path, err := t.io.RegisterSequential(path, data)
@@ -125,6 +131,10 @@ func (t *LeaderElection) RegisterLeader(path u.Path, data any) (u.Path, error) {
 	return path, nil
 }
 
+// ReadLeader retrieves the leader's data from the specified path.
+//
+// It checks the leader directory, fetches the leader's child node, and reads its data.
+// Returns the leader's data or an error if no leader is found or reading fails.
 func (t *LeaderElection) ReadLeader(path u.Path) ([]byte, error) {
 	leaderDir := u.PathBuilder{}.Base(path).CD(string(Leader)).Create()
 	childs, err := t.io.GetChildren(leaderDir)
@@ -140,6 +150,10 @@ func (t *LeaderElection) ReadLeader(path u.Path) ([]byte, error) {
 	return data, nil
 }
 
+// ReadFollowers retrieves the data of all followers from the specified path.
+//
+// It checks the followers directory, fetches each follower's data, and returns a slice
+// containing the data of all followers. If no followers are found or reading fails, an error is returned
 func (t *LeaderElection) ReadFollowers(path u.Path) ([][]byte, error) {
 	followersDir := u.PathBuilder{}.Base(path).CD(string(Follower)).Create()
 	childs, err := t.io.GetChildren(followersDir)
@@ -161,18 +175,22 @@ func (t *LeaderElection) ReadFollowers(path u.Path) ([][]byte, error) {
 	return followers, nil
 }
 
+// ListenForLeaderSignal returns a channel that signals when the leader is elected.
 func (t *LeaderElection) ListenForLeaderSignal() <-chan struct{} {
 	return t.leaderSignal
 }
 
+// LeaderSignal sends a signal indicating that the leader has been elected.
 func (t *LeaderElection) LeaderSignal() {
 	t.leaderSignal <- struct{}{}
 }
 
-func (t *LeaderElection) ListenForFatalSignal() <-chan struct{} {
-	return t.fatalSignal
-}
-
+// FatalSignal sends a signal indicating a fatal error has occurred.
 func (t *LeaderElection) FatalSignal() {
 	t.fatalSignal <- struct{}{}
+}
+
+// ListenForFatalSignal returns a channel that signals when a fatal error occurs.
+func (t *LeaderElection) ListenForFatalSignal() <-chan struct{} {
+	return t.fatalSignal
 }
