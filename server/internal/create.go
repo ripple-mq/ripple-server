@@ -14,6 +14,8 @@ type PCServer struct {
 	Caddr string
 }
 
+// CreateBucket creates a new bucket by initializing a new broker instance for the given topic and bucket.
+// Starts Pub/Sub server & returns address
 func (t Server) CreateBucket(ctx context.Context, req *pb.CreateBucketReq) (*pb.CreateBucketResp, error) {
 	b := broker.NewBroker(topic.TopicBucket{TopicName: req.Topic, BucketName: req.Bucket})
 	paddr, caddr := utils.RandLocalAddr(), utils.RandLocalAddr()

@@ -31,17 +31,20 @@ func new() *LigthHouse {
 	return ligthHouseInstance
 }
 
-// EnsurePathExists checks whether `path` exist or not, creates if not
+// ReadFollowers reads data from followers.
+//
+// Retrieves the data associated with all followers at the specified path.
+// Returns the followers' data and any error encountered during reading.
 func (t *LigthHouse) EnsurePathExists(path string) {
 	if err := t.io.EnsurePathExists(path); err != nil {
 		log.Fatal(err)
 	}
 }
 
-// RegisterSequential writes `data` at `utils.Path`
+// RegisterSequential writes `data` at `utils.Path`.
 //
-// Returns:
-//   - u.Path: full sequential path
+// Creates a sequential node at the specified path with the given data and returns the full path.
+// Returns the sequential path where the data is written.
 func (t *LigthHouse) RegisterSequential(path u.Path, data interface{}) u.Path {
 	path, err := t.io.RegisterSequential(path, data)
 	if err != nil {
@@ -50,12 +53,16 @@ func (t *LigthHouse) RegisterSequential(path u.Path, data interface{}) u.Path {
 	return path
 }
 
-// Read reads data at `path`
+// Read reads data at `path`.
+//
+// Retrieves the data stored at the specified path.
 func (t *LigthHouse) Read(path u.Path) ([]byte, error) {
 	return t.io.Read(path)
 }
 
-// Write writes data at `path`
+// Write writes data at `path`.
+//
+// Stores the provided data at the specified path.
 func (t *LigthHouse) Write(path u.Path, newData any) {
 	t.io.Write(path, newData)
 }

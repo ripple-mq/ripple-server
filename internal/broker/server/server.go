@@ -16,23 +16,10 @@ type Server struct {
 	CS *cs.ConsumerServer[queue.Payload] // Consumer server instance
 }
 
-// NewServer creates and returns a new Pub/Sub server instance.
+// NewServer creates a new Pub/Sub server instance with a producer and consumer.
 //
-// It initializes a new producer and consumer.
-// Note: It doesn't start listening.
-//
-// It is advised to Listen() asap to avoid busy port error.
-//
-// Parameters:
-//   - paddr (string): Producer server address.
-//   - caddr (string): Consumer server address.
-//
-// Returns:
-//   - *Server.
-//
-// Example usage:
-//
-//	server := NewServer("localhost:8080", "localhost:8081")
+// It initializes the producer and consumer but doesn't start listening.
+// Call Listen() on the returned server to start listening and avoid a busy port error.
 func NewServer(paddr, caddr string) *Server {
 	q := queue.NewQueue[queue.Payload]()
 	p, _ := p.NewProducer().ByteStreamingServer(paddr, q)
@@ -40,12 +27,8 @@ func NewServer(paddr, caddr string) *Server {
 	return &Server{PS: p, CS: c}
 }
 
-// Listen spins up pub/sub servers at specified ports.
-//
-// Returns:
-//   - error
+// Listen starts the pub/sub servers on the specified ports.
 func (t *Server) Listen() error {
-
 	if err := t.PS.Listen(); err != nil {
 		return fmt.Errorf("failed to start producer server: %v", err)
 	}

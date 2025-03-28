@@ -7,11 +7,13 @@ import (
 	bootsrrap "github.com/ripple-mq/ripple-server/server/internal"
 )
 
+// Server represents a server that manages both broker and internal servers.
 type Server struct {
 	brokerServer    *broker.BootstrapServer
 	bootstrapServer *bootsrrap.InternalServer
 }
 
+// NewServer creates and returns a new Server instance with the specified broker and internal server addresses.
 func NewServer(baddr string, eaddr string) *Server {
 	brokerServer, _ := broker.NewBootstrapServer(eaddr)
 	bootstrapServer, _ := bootsrrap.NewInternalServer(baddr)
@@ -19,6 +21,7 @@ func NewServer(baddr string, eaddr string) *Server {
 	return &Server{brokerServer, bootstrapServer}
 }
 
+// Listen starts both the bootstrap and broker servers and handles any errors during startup.
 func (t *Server) Listen() {
 	err := t.bootstrapServer.Listen()
 	if err != nil {
@@ -32,5 +35,5 @@ func (t *Server) Listen() {
 
 func (t *Server) Stop() {
 	t.bootstrapServer.Stop()
-	t.brokerServer.Stop() //
+	t.brokerServer.Stop()
 }

@@ -8,6 +8,8 @@ import (
 	pb "github.com/ripple-mq/ripple-server/server/exposed/proto"
 )
 
+// GetProducerConnection retrieves the producer server connection details.
+// Given a topic and bucket, it fetches the producer server's connection address.
 func (c Server) GetProducerConnection(ctx context.Context, req *pb.GetProducerConnectionReq) (*pb.GetProducerConnectionResp, error) {
 
 	data, err := producer.NewProducer().GetServerConnection(req.Topic, req.Bucket)

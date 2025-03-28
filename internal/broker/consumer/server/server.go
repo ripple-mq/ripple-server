@@ -14,15 +14,10 @@ type ConsumerServer[T any] struct {
 	q          *queue.Queue[T] // thread safe message queue
 }
 
-// NewConsumerServer[T] creates Sub server to accept data of type T
+// NewConsumerServer creates and returns a new ConsumerServer instance.
 //
-// Parameters:
-//   - addr(string): address to listen at
-//   - q(*queue.Queue[T]): message queue
-//
-// Returns:
-//   - *ProducerServer[T]
-//   - error
+// It initializes a new server that listens on the given address and uses the provided
+// message queue. The server will accept incoming connections and handle consumer requests.
 func NewConsumerServer[T any](addr string, q *queue.Queue[T]) (*ConsumerServer[T], error) {
 	server, err := tcp.NewTransport(addr, onAcceptingConsumer)
 	if err != nil {
@@ -36,10 +31,10 @@ func NewConsumerServer[T any](addr string, q *queue.Queue[T]) (*ConsumerServer[T
 	}, nil
 }
 
-// Listen starts Sub server & starts accepting data from message queue
+// Listen starts the server and begins accepting data from the message queue.
 //
-// Returns:
-//   - error
+// It initializes the server to listen for incoming connections and then starts
+// accepting consume requests from the message queue asynchronously.
 func (t *ConsumerServer[T]) Listen() error {
 	err := t.server.Listen()
 	t.startAcceptingConsumeReq()
@@ -47,6 +42,8 @@ func (t *ConsumerServer[T]) Listen() error {
 }
 
 // Stop stops listening to new Consumer connections
+//
+// Note: It still continues to serve existing connections
 func (t *ConsumerServer[T]) Stop() {
 	if err := t.server.Stop(); err != nil {
 		log.Errorf("failed to stop: %v", err)

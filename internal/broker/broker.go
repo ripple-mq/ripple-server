@@ -29,17 +29,11 @@ type Broker struct {
 }
 
 // NewBroker returns `*Broker` with specified topic
-//
-// Returns:
-//   - *Broker
 func NewBroker(topic tp.TopicBucket) *Broker {
 	return &Broker{topic}
 }
 
 // Run spins up Pub/Sub servers & starts listening to new conn
-//
-// Returns:
-//   - error
 func (t *Broker) Run(paddr, caddr string) error {
 	bs := server.NewServer(paddr, caddr)
 	if err := bs.Listen(); err != nil {
@@ -52,9 +46,6 @@ func (t *Broker) Run(paddr, caddr string) error {
 }
 
 // registerAndStartWatching registers broker as follower & watches leader
-//
-// Returns:
-//   - error
 //
 // TODO: Avoid re-registering topic/bucket
 // TODO: Cron job to push messages in batches to read replicas from leader
@@ -71,9 +62,10 @@ func (t *Broker) registerAndStartWatching(bs *server.Server, addr PCServerAddr) 
 	return nil
 }
 
-// RunCleanupLoop gracefully stutdowns Pub/Sub server
+// RunCleanupLoop gracefully shuts down the Pub/Sub server when signaled.
 //
-//	Async
+// It listens for a signal on the provided channel and stops the server when
+// the signal is received, ensuring a clean shutdown.
 func (t *Broker) RunCleanupLoop(server *server.Server, ch <-chan struct{}) {
 	for range ch {
 		server.Stop()
