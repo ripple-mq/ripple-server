@@ -130,8 +130,10 @@ func (t *EventLoop) registerEvent(fd int) error {
 		return nil
 	}
 
+	// Level-Triggered (no EPOLLET)
+	// So it triggers event even for partial reads
 	event := unix.EpollEvent{
-		Events: unix.EPOLLIN | unix.EPOLLET,
+		Events: unix.EPOLLIN,
 		Fd:     int32(fd),
 	}
 
@@ -159,6 +161,7 @@ func (t *EventLoop) StartAckLoop() {
 			for i := 0; i < n; i++ {
 				if err := t.handleEvent(t.events[i]); err != nil {
 					log.Errorf("failed to handle event: %v", err)
+					break
 				}
 			}
 		}
@@ -172,7 +175,7 @@ func (t *EventLoop) handleEvent(event unix.EpollEvent) error {
 	_, err := unix.Read(fd, lengthBytes)
 	if err != nil {
 		if err == unix.EAGAIN || err == unix.EWOULDBLOCK {
-			return nil
+			return err
 		}
 		unix.Close(fd)
 		return fmt.Errorf("unexpected read failure: %v", err)
@@ -186,7 +189,7 @@ func (t *EventLoop) handleEvent(event unix.EpollEvent) error {
 		n, err := unix.Read(fd, buf)
 		if err != nil {
 			if err == unix.EAGAIN || err == unix.EWOULDBLOCK {
-				return nil
+				return err
 			}
 			unix.Close(fd)
 			return fmt.Errorf("unexpected read failure: %v", err)
