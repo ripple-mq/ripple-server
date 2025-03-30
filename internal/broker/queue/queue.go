@@ -17,8 +17,16 @@ func NewQueue[T any]() *Queue[T] {
 	}
 }
 
+func (t *Queue[T]) IsEmpty() bool {
+	return t.q.Size() == 0
+}
+
 func (t *Queue[T]) Push(value T) {
 	t.q.Append(value)
+}
+
+func (t *Queue[T]) Poll() T {
+	return t.q.RemoveFirst()
 }
 
 func (t *Queue[T]) SubArray(start int, end int) []T {

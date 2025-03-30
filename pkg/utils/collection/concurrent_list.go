@@ -48,6 +48,17 @@ func (t *ConcurrentList[T]) Size() int {
 	return len(t.list)
 }
 
+func (t *ConcurrentList[T]) RemoveFirst() T {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var value T
+	if len(t.list) > 0 {
+		value = t.list[0]
+		t.list = t.list[1:]
+	}
+	return value
+}
+
 func (t *ConcurrentList[T]) Range(start int, end int) []T {
 	var data []T
 	t.mu.Lock()

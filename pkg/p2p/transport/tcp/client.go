@@ -11,13 +11,11 @@ import (
 )
 
 func (t *Transport) send(addr string, metadata any, data any) error {
-	peerNode, err := t.dial(addr)
+	peerNode, err := t.dial(addr, metadata)
 	if err != nil {
 		return err
 	}
-	if metadata != struct{}{} {
-		t.write(peerNode, metadata)
-	}
+
 	t.write(peerNode, data)
 	return nil
 }
@@ -40,17 +38,22 @@ func (t *Transport) write(peerNode peer.Peer, data any) {
 	}
 }
 
-func (t *Transport) dial(addr string) (peer.Peer, error) {
+func (t *Transport) dial(addr string, metadata any) (peer.Peer, error) {
 	peerNode, _ := t.getConnection(addr)
 	if peerNode != nil {
 		return peerNode, nil
 	}
 	conn, err := net.Dial(t.ListenAddr.Network(), addr)
+	peerNode = t.addConnection(conn)
+
+	t.write(peerNode, metadata)
 	if err != nil {
 		return nil, fmt.Errorf("unable to establish connection with %s", addr)
 	}
 
-	go t.handleConnection(conn)
+	if t.ShouldClientHandleConn {
+		go t.handleConnection(conn)
+	}
 
-	return t.addConnection(conn), nil
+	return peerNode, nil
 }

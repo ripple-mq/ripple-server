@@ -17,12 +17,17 @@ type Message struct {
 	Payload    []byte
 }
 
+type TransportOpts struct {
+	ShouldClientHandleConn bool
+}
+
 // Transport implements Transport
 type Transport struct {
-	ListenAddr        net.Addr
-	IncommingMsgQueue chan Message
-	Encoder           encoder.Encoder
-	OnAcceptingConn   func(conn net.Conn, message []byte)
+	ListenAddr             net.Addr
+	IncommingMsgQueue      chan Message
+	Encoder                encoder.Encoder
+	OnAcceptingConn        func(conn net.Conn, message []byte)
+	ShouldClientHandleConn bool
 
 	mu       *sync.RWMutex
 	PeersMap map[string]peer.Peer
@@ -30,20 +35,26 @@ type Transport struct {
 	wg       sync.WaitGroup
 }
 
-func NewTransport(addr string, OnAcceptingConn func(conn net.Conn, msg []byte)) (*Transport, error) {
+func NewTransport(addr string, OnAcceptingConn func(conn net.Conn, message []byte), opts ...TransportOpts) (*Transport, error) {
+	defaultOpts := TransportOpts{ShouldClientHandleConn: true}
+	if len(opts) > 0 {
+		defaultOpts = opts[0]
+	}
+
 	address, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid address type, %v", err)
 	}
 	return &Transport{
 
-		ListenAddr:        address,
-		IncommingMsgQueue: make(chan Message, 10),
-		Encoder:           encoder.GOBEncoder{},
-		PeersMap:          make(map[string]peer.Peer),
-		wg:                sync.WaitGroup{},
-		mu:                &sync.RWMutex{},
-		OnAcceptingConn:   OnAcceptingConn,
+		ListenAddr:             address,
+		IncommingMsgQueue:      make(chan Message, 10),
+		Encoder:                encoder.GOBEncoder{},
+		PeersMap:               make(map[string]peer.Peer),
+		wg:                     sync.WaitGroup{},
+		mu:                     &sync.RWMutex{},
+		OnAcceptingConn:        OnAcceptingConn,
+		ShouldClientHandleConn: defaultOpts.ShouldClientHandleConn,
 	}, nil
 }
 
@@ -65,7 +76,7 @@ func (t *Transport) Stop() error {
 	return t.listener.Close()
 }
 
-// Send sends message
+// Send sends message, metadata will be sent only for first connection
 func (t *Transport) Send(addr string, metadata any, data any) error {
 	return t.send(addr, metadata, data)
 }
