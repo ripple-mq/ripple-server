@@ -28,13 +28,15 @@ WORKDIR "/src/__ripple-server__"
 
 # Selectively copy the requirements into the image - using `*go.sum` prevents failure
 # if the file does not exist!
-COPY go.mod *go.sum ./
-
+COPY go.mod *go.sum config.toml ./
+COPY config.toml .
 # Fetch all requirements and install them
 RUN go mod download
 
 # Copy remaining project files
 COPY . .
+
+RUN go test ./... 
 
 # Generate a binary -- custom name to avoid collisions with existing files/directories
 RUN go build -v -o "../__ripple-server_build_output__"
@@ -43,11 +45,14 @@ RUN go build -v -o "../__ripple-server_build_output__"
 # Second stage - `scratch` for production builds, `golang:1.23` for debug builds
 FROM ${final_image}
 
-WORKDIR "/builds"
+WORKDIR "/"
 
 # Copy generated binary from previous image to this one - rename for readability
 COPY --from=builder "/src/__ripple-server_build_output__" \
     "./ripple-server"
+
+COPY config.toml .
+COPY go.mod .
 
 # Set environment variables to distuinguish between build modes
 ARG build_mode=production
