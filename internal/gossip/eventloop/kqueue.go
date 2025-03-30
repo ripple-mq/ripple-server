@@ -1,3 +1,7 @@
+//go:build darwin
+// +build darwin
+
+// eventloop for mac with kqueue
 package eventloop
 
 import (
@@ -178,7 +182,7 @@ func (t *EventLoop) handleEvent(event unix.Kevent_t) error {
 		n, err := unix.Read(fd, buf)
 		if err != nil {
 			if err == unix.EAGAIN || err == unix.EWOULDBLOCK {
-				return fmt.Errorf("resource error while reading: %v", err) // No more data for now
+				return fmt.Errorf("resource error while reading: %v", err)
 			}
 			unix.Close(fd)
 			return fmt.Errorf("unexpected read failure: %v", err)
