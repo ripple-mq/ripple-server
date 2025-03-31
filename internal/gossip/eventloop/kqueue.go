@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 type Task interface {
@@ -52,15 +53,19 @@ func newEventLoop() (*EventLoop, error) {
 	eventLoop := EventLoop{
 		q:      queue.NewQueue[Task](),
 		kqFd:   kqId,
-		events: make([]unix.Kevent_t, 10),
+		events: make([]unix.Kevent_t, config.Conf.EventLoop.Kqueue_event_buffer_size),
 		dump:   collection.NewConcurrentMap[int, Task](),
 	}
 	return &eventLoop, nil
 }
 
 // AddTask pushes Task to task queue
-func (t *EventLoop) AddTask(task Task) {
+func (t *EventLoop) AddTask(task Task) error {
+	if t.q.Size() == int(config.Conf.EventLoop.Task_queue_buffer_size) {
+		return fmt.Errorf("task buffer overflow")
+	}
 	t.q.Push(task)
+	return nil
 }
 
 // SetNonBlocking sets the file descriptor to non-blocking mode

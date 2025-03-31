@@ -14,6 +14,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 	"github.com/ripple-mq/ripple-server/pkg/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 func TestGetEventLoop(t *testing.T) {
@@ -93,8 +94,10 @@ func TestEventLoopIntegration(t *testing.T) {
 		name           string
 		servers        []string
 		clientAddr     string
+		taskBufferSize int32
 		tasksPerClient int
-		wantErr        bool
+		wantGetLoopErr bool
+		wantAddTaskErr bool
 	}{
 		{
 			name: "normal flow",
@@ -105,11 +108,28 @@ func TestEventLoopIntegration(t *testing.T) {
 			},
 			clientAddr:     ":8800",
 			tasksPerClient: 30,
-			wantErr:        false,
+			taskBufferSize: 150,
+			wantGetLoopErr: false,
+			wantAddTaskErr: false,
+		},
+		{
+			name: "buffer  overflow",
+			servers: []string{
+				"127.0.0.1" + utils.RandLocalAddr(),
+			},
+			clientAddr:     ":8801",
+			tasksPerClient: 30,
+			taskBufferSize: 10,
+			wantGetLoopErr: false,
+			wantAddTaskErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockConf := config.GetMockConfig()
+			defer mockConf.Reset()
+
+			config.Conf.EventLoop.Task_queue_buffer_size = tt.taskBufferSize
 
 			for _, server := range tt.servers {
 				server, _ := tcp.NewTransport(server, func(conn net.Conn, msg []byte) {})
@@ -138,8 +158,8 @@ func TestEventLoopIntegration(t *testing.T) {
 
 			el, err := eventloop.GetEventLoop()
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetEventLoop() error = %v, wantErr %v", err, tt.wantErr)
+			if (err != nil) != tt.wantGetLoopErr {
+				t.Errorf("GetEventLoop() error = %v, wantErr %v", err, tt.wantGetLoopErr)
 				return
 			}
 
@@ -150,11 +170,13 @@ func TestEventLoopIntegration(t *testing.T) {
 				ackCount := collection.NewConcurrentValue(0)
 				task := Task{conn: client.PeersMap[server].GetConnection(), AckCount: ackCount}
 				for range tt.tasksPerClient {
-					el.AddTask(task)
+					if err := el.AddTask(task); err != nil && !tt.wantAddTaskErr {
+						t.Errorf("failed to add task, %v", err)
+					}
 				}
 
 				time.Sleep(2 * time.Second)
-				if ackCount.Get() != tt.tasksPerClient+1 {
+				if !tt.wantAddTaskErr && ackCount.Get() != tt.tasksPerClient+1 {
 					t.Errorf("invalid ack count, got= %d , want= %d", ackCount.Get(), tt.tasksPerClient)
 				}
 
