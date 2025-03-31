@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 type Task interface {
@@ -53,7 +54,7 @@ func newEventLoop() (*EventLoop, error) {
 	eventLoop := EventLoop{
 		q:             queue.NewQueue[Task](),
 		epFd:          epFd,
-		events:        make([]unix.EpollEvent, 10),
+		events:        make([]unix.EpollEvent, config.Conf.EventLoop.Epoll_event_buffer_size),
 		dump:          collection.NewConcurrentMap[int, Task](),
 		registeredFDs: make(map[int]bool),
 	}
@@ -61,8 +62,12 @@ func newEventLoop() (*EventLoop, error) {
 }
 
 // AddTask pushes Task to task queue
-func (t *EventLoop) AddTask(task Task) {
+func (t *EventLoop) AddTask(task Task) error {
+	if t.q.Size() == int(config.Conf.EventLoop.Task_queue_buffer_size) {
+		return fmt.Errorf("task buffer overflow")
+	}
 	t.q.Push(task)
+	return nil
 }
 
 // SetNonBlocking sets the file descriptor to non-blocking mode
@@ -112,6 +117,7 @@ func (t *EventLoop) StartExecLoop() {
 
 			if err := t.registerEvent(fd); err != nil {
 				log.Errorf("failed to register event: %v", err)
+				continue
 			}
 
 			buff := task.GetDataToSend()
@@ -124,7 +130,9 @@ func (t *EventLoop) StartExecLoop() {
 	}()
 }
 
-// registerEvent registers a file descriptor (fd) with the epoll for read events.
+// registerEvent adds a file descriptor (fd) to the epoll instance to monitor for read events.
+// It ensures the fd is not already registered, sets up the event for level-triggered notifications (EPOLLIN),
+// and handles errors by closing the fd if registration fails.
 func (t *EventLoop) registerEvent(fd int) error {
 	if t.registeredFDs[fd] {
 		return nil
@@ -153,6 +161,7 @@ func (t *EventLoop) registerEvent(fd int) error {
 func (t *EventLoop) StartAckLoop() {
 	go func() {
 		for {
+			// msec = -1 , blocking wait
 			n, err := unix.EpollWait(t.epFd, t.events, -1)
 			if err != nil {
 				log.Errorf("Error in EpollWait: %v", err)
@@ -168,7 +177,11 @@ func (t *EventLoop) StartAckLoop() {
 	}()
 }
 
-// handleEvent processes an epoll event for a given file descriptor (fd).
+// handleEvent processes incoming events from the epoll instance.
+//
+// It reads the length-prefixed data from the file descriptor, accumulates the complete message,
+// and acknowledges the task associated with the descriptor once the full message is received.
+// Handles read errors, client disconnections, and partial reads appropriately.
 func (t *EventLoop) handleEvent(event unix.EpollEvent) error {
 	fd := int(event.Fd)
 	lengthBytes := make([]byte, 4)

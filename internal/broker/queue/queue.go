@@ -17,6 +17,10 @@ func NewQueue[T any]() *Queue[T] {
 	}
 }
 
+func (t *Queue[T]) Size() int {
+	return t.q.Size()
+}
+
 func (t *Queue[T]) IsEmpty() bool {
 	return t.q.Size() == 0
 }

@@ -2,9 +2,7 @@ package config
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/charmbracelet/log"
 	testutils "github.com/ripple-mq/ripple-server/test"
 	"github.com/spf13/viper"
 )
@@ -23,6 +21,13 @@ type Config struct {
 	Topic struct {
 		Replicas int
 	}
+	EventLoop struct {
+		Max_fd_soft_limit        int64
+		Task_queue_buffer_size   int32
+		Kqueue_event_buffer_size int32
+		Epoll_event_buffer_size  int32
+		Blocking_mode            bool
+	}
 }
 
 var Conf, _ = LoadConfig(".")
@@ -33,9 +38,6 @@ func LoadConfig(path string) (*Config, error) {
 	viper.SetConfigType("toml")
 	viper.AddConfigPath(path)
 	viper.AutomaticEnv()
-
-	pwd, _ := os.Getwd()
-	log.Infof("Present INNNN:  %s", pwd)
 
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("error reading config: %w", err)

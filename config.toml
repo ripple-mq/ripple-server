@@ -10,3 +10,10 @@ client_grpc_addr=":8909"
 
 [Topic]
 replicas=3
+
+[EventLoop]
+max_fd_soft_limit=13824
+task_queue_buffer_size=1000
+kqueue_event_buffer_size=100
+epoll_event_buffer_size=100
+blocking_mode=true
