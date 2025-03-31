@@ -8,7 +8,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 )
 
-type ProducerServer[T any] struct {
+type ProducerServer[T queue.PayloadIF] struct {
 	listenAddr net.Addr        // listening address
 	server     *tcp.Transport  // Prodcuer server instance
 	q          *queue.Queue[T] // thread safe message queue
@@ -18,8 +18,8 @@ type ProducerServer[T any] struct {
 //
 // It initializes a server to listen on the specified address and uses the given
 // message queue for processing the data.
-func NewProducerServer[T any](addr string, q *queue.Queue[T]) (*ProducerServer[T], error) {
-	server, err := tcp.NewTransport(addr, onAcceptingProdcuer)
+func NewProducerServer[T queue.PayloadIF](addr string, q *queue.Queue[T]) (*ProducerServer[T], error) {
+	server, err := tcp.NewTransport(addr, onAcceptingProdcuer, tcp.TransportOpts{ShouldClientHandleConn: true, Ack: true})
 	if err != nil {
 		return nil, err
 	}

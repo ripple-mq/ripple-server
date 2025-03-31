@@ -7,8 +7,21 @@ type Queue[T any] struct {
 	q *collection.ConcurrentList[T]
 }
 
+type PayloadIF interface {
+	GetID() int32
+}
+
 type Payload struct {
+	Id   int32
 	Data []byte
+}
+
+func (t Payload) GetID() int32 {
+	return t.Id
+}
+
+type Ack struct {
+	Id int32
 }
 
 func NewQueue[T any]() *Queue[T] {

@@ -50,6 +50,7 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 
 	for {
 		messages := t.q.SubArray(offset, offset+query.Count)
+		// Should i terminate current response if no message available for now
 		if len(messages) == 0 {
 			continue
 		}

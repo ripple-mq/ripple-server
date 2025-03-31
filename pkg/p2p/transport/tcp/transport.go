@@ -19,6 +19,7 @@ type Message struct {
 
 type TransportOpts struct {
 	ShouldClientHandleConn bool
+	Ack                    bool
 }
 
 // Transport implements Transport
@@ -28,6 +29,7 @@ type Transport struct {
 	Encoder                encoder.Encoder
 	OnAcceptingConn        func(conn net.Conn, message []byte)
 	ShouldClientHandleConn bool
+	Ack                    bool
 
 	mu       *sync.RWMutex
 	PeersMap map[string]peer.Peer
@@ -36,7 +38,7 @@ type Transport struct {
 }
 
 func NewTransport(addr string, OnAcceptingConn func(conn net.Conn, message []byte), opts ...TransportOpts) (*Transport, error) {
-	defaultOpts := TransportOpts{ShouldClientHandleConn: true}
+	defaultOpts := TransportOpts{ShouldClientHandleConn: true, Ack: false}
 	if len(opts) > 0 {
 		defaultOpts = opts[0]
 	}
@@ -55,6 +57,7 @@ func NewTransport(addr string, OnAcceptingConn func(conn net.Conn, message []byt
 		mu:                     &sync.RWMutex{},
 		OnAcceptingConn:        OnAcceptingConn,
 		ShouldClientHandleConn: defaultOpts.ShouldClientHandleConn,
+		Ack:                    defaultOpts.Ack,
 	}, nil
 }
 
