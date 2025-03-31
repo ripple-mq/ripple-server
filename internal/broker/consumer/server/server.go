@@ -8,7 +8,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 )
 
-type ConsumerServer[T any] struct {
+type ConsumerServer[T queue.PayloadIF] struct {
 	listenAddr net.Addr        // listening address
 	server     *tcp.Transport  // Consumer server instance
 	q          *queue.Queue[T] // thread safe message queue
@@ -18,7 +18,7 @@ type ConsumerServer[T any] struct {
 //
 // It initializes a new server that listens on the given address and uses the provided
 // message queue. The server will accept incoming connections and handle consumer requests.
-func NewConsumerServer[T any](addr string, q *queue.Queue[T]) (*ConsumerServer[T], error) {
+func NewConsumerServer[T queue.PayloadIF](addr string, q *queue.Queue[T]) (*ConsumerServer[T], error) {
 	server, err := tcp.NewTransport(addr, onAcceptingConsumer)
 	if err != nil {
 		return nil, err

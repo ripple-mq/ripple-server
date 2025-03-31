@@ -29,7 +29,19 @@ package broker_test
 // 	paddr, caddr := utils.RandLocalAddr(), utils.RandLocalAddr()
 // 	b.Run(paddr, caddr)
 
-// 	client, _ := tcp.NewTransport(":9000", func(conn net.Conn, msg []byte) {})
+// 	prod, _ := tcp.NewTransport(":9000", func(conn net.Conn, msg []byte) {})
+// 	cons, _ := tcp.NewTransport(":9001", func(conn net.Conn, msg []byte) {})
+
+// 	go func() {
+// 		for {
+// 			var msg queue.Ack
+// 			_, err := prod.Consume(encoder.GOBDecoder{}, &msg)
+// 			if err != nil {
+// 				log.Warnf("ack error : %v", err)
+// 			}
+// 			fmt.Println("Producer: ack = ", msg.Id)
+// 		}
+// 	}()
 
 // 	go func() {
 // 		i := 0
@@ -39,21 +51,24 @@ package broker_test
 // 			if err != nil {
 // 				t.Errorf("failed to encode: %v", err)
 // 			}
-// 			if err := client.Send(paddr, struct{}{}, queue.Payload{Data: buff.Bytes()}); err != nil {
+// 			if err := prod.Send(paddr, struct{}{}, queue.Payload{Id: int32(i), Data: buff.Bytes()}); err != nil {
 // 				t.Errorf("failed to send: %v", err)
 // 			}
 // 			i++
+// 			if i == 20 {
+// 				time.Sleep(2 * time.Second)
+// 			}
 // 		}
 // 	}()
 
-// 	if err := client.Send(caddr, "0", AskQuery{Count: 4, ID: strconv.Itoa(0)}); err != nil {
+// 	if err := cons.Send(caddr, "0", AskQuery{Count: 4, ID: strconv.Itoa(0)}); err != nil {
 // 		t.Errorf("failed to send: %v", err)
 // 	}
 
 // 	go func() {
 // 		for {
 // 			var msg []queue.Payload
-// 			addr, err := client.Consume(encoder.GOBDecoder{}, &msg)
+// 			addr, err := cons.Consume(encoder.GOBDecoder{}, &msg)
 // 			if err != nil {
 // 				log.Warnf("error: %v", err)
 // 			}
@@ -70,5 +85,5 @@ package broker_test
 // 		}
 // 	}()
 
-// 	time.Sleep(3 * time.Second)
+// 	time.Sleep(100 * time.Second)
 // }

@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/charmbracelet/log"
+	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 )
 
@@ -16,11 +17,15 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 	go func() {
 		for {
 			var data T
-			_, err := t.server.Consume(encoder.GOBDecoder{}, &data)
+			prodAddr, err := t.server.Consume(encoder.GOBDecoder{}, &data)
 			if err != nil {
 				log.Warnf("error reading data: %v", err)
 			}
+
 			t.q.Push(data)
+			if t.server.Ack {
+				t.server.Send(prodAddr, struct{}{}, queue.Ack{Id: data.GetID()})
+			}
 		}
 	}()
 }
