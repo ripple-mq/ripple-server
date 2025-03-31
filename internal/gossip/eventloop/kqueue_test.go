@@ -38,7 +38,7 @@ func TestGetEventLoop(t *testing.T) {
 }
 
 type Task struct {
-	AckCount *collection.ConcurrentValue[int]
+	AckCount *collection.ConcurrentValue[int] // counts ack for testing purpose
 	conn     net.Conn
 }
 
@@ -84,6 +84,9 @@ func (t Task) Acknowledge(data []byte) error {
 	return nil
 }
 
+// TestEventLoopIntegration verifies the integration of the event loop with
+// TCP-based client-server communication.
+// It tests TCP pings with multiple servers and counts the expected number of acknowledgments (acks).
 func TestEventLoopIntegration(t *testing.T) {
 
 	tests := []struct {
@@ -123,10 +126,11 @@ func TestEventLoopIntegration(t *testing.T) {
 				}()
 			}
 
+			// ShouldClientHandleConn is set to false to avoid multiple reads over same connection
 			client, _ := tcp.NewTransport(tt.clientAddr, func(conn net.Conn, msg []byte) {}, tcp.TransportOpts{ShouldClientHandleConn: false})
 
 			for _, server := range tt.servers {
-				// initializing connection by handshake
+				// TCP handshake
 				if err := client.Send(server, struct{}{}, "some random data"); err != nil {
 					fmt.Println("Send() err: ", err)
 				}

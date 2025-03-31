@@ -176,6 +176,7 @@ func (t *EventLoop) handleEvent(event unix.Kevent_t) error {
 	totalLength := binary.BigEndian.Uint32(lengthBytes)
 
 	var buffer []byte
+	// trying to read full `totalLength` bytes of data with blocking read
 	for {
 		length := totalLength - uint32(len(buffer))
 		buf := make([]byte, length)

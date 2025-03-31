@@ -124,7 +124,9 @@ func (t *EventLoop) StartExecLoop() {
 	}()
 }
 
-// registerEvent registers a file descriptor (fd) with the epoll for read events.
+// registerEvent adds a file descriptor (fd) to the epoll instance to monitor for read events.
+// It ensures the fd is not already registered, sets up the event for level-triggered notifications (EPOLLIN),
+// and handles errors by closing the fd if registration fails.
 func (t *EventLoop) registerEvent(fd int) error {
 	if t.registeredFDs[fd] {
 		return nil
@@ -153,6 +155,7 @@ func (t *EventLoop) registerEvent(fd int) error {
 func (t *EventLoop) StartAckLoop() {
 	go func() {
 		for {
+			// msec = -1 , blocking wait
 			n, err := unix.EpollWait(t.epFd, t.events, -1)
 			if err != nil {
 				log.Errorf("Error in EpollWait: %v", err)
@@ -168,7 +171,11 @@ func (t *EventLoop) StartAckLoop() {
 	}()
 }
 
-// handleEvent processes an epoll event for a given file descriptor (fd).
+// handleEvent processes incoming events from the epoll instance.
+//
+// It reads the length-prefixed data from the file descriptor, accumulates the complete message,
+// and acknowledges the task associated with the descriptor once the full message is received.
+// Handles read errors, client disconnections, and partial reads appropriately.
 func (t *EventLoop) handleEvent(event unix.EpollEvent) error {
 	fd := int(event.Fd)
 	lengthBytes := make([]byte, 4)
