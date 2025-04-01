@@ -1,5 +1,5 @@
 [Zookeeper]
-connection_url="127.0.0.1:2181"
+connection_url="172.28.0.3:2181"
 connection_wait_time_ms=4000
 session_timeout_ms=400000000000
 
@@ -17,3 +17,6 @@ task_queue_buffer_size=1000
 kqueue_event_buffer_size=100
 epoll_event_buffer_size=100
 blocking_mode=true
+
+[AsyncTCP]
+address=":8080"

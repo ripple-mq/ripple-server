@@ -99,8 +99,11 @@ func (t *Broker) CreateBucket() ([]InternalRPCServerAddr, error) {
 	lb := loadbalancer.NewReadReqLoadBalancer()
 	for range config.Conf.Topic.Replicas {
 		var node InternalRPCServerAddr
-
-		encoder.GOBDecoder{}.Decode(bytes.NewBuffer(servers[lb.GetIndex(len(servers))]), node)
+		serverNode := servers[lb.GetIndex(len(servers)-1)]
+		err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(serverNode), &node)
+		if err != nil {
+			continue
+		}
 		nodes = append(nodes, node)
 	}
 	return nodes, nil

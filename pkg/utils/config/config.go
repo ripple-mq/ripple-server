@@ -28,6 +28,9 @@ type Config struct {
 		Epoll_event_buffer_size  int32
 		Blocking_mode            bool
 	}
+	AsyncTCP struct {
+		Address string
+	}
 }
 
 var Conf, _ = LoadConfig(".")

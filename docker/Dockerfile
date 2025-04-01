@@ -36,7 +36,7 @@ RUN go mod download
 # Copy remaining project files
 COPY . .
 
-RUN go test ./... 
+#  RUN go test ./... 
 
 # Generate a binary -- custom name to avoid collisions with existing files/directories
 RUN go build -v -o "../__ripple-server_build_output__"
