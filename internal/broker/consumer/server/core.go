@@ -2,13 +2,13 @@ package server
 
 import (
 	"bytes"
-	"net"
 	"strconv"
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
 )
 
 // AskQuery needs a standard serialization to make it compatible with all language/frameworks
@@ -62,13 +62,13 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 }
 
 // onAcceptingConsumer handles a new consumer connection and registers the consumer.
-func onAcceptingConsumer(conn net.Conn, id []byte) {
+func onAcceptingConsumer(msg comm.Message) {
 	var ID string
-	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(id), &ID)
+	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg.Payload), &ID)
 	if err != nil {
 		log.Warnf("error reading data: %v", err)
 	}
-	log.Infof("Accepting consumer: %s %s", conn.RemoteAddr(), ID)
+	log.Infof("Accepting consumer: %s %s", msg.RemoteAddr, ID)
 	registerConsumer(ID)
 }
 

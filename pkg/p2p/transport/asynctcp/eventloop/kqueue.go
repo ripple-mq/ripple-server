@@ -28,12 +28,13 @@ const (
 )
 
 type Server struct {
-	kq         int
-	listenerFd int
-	Decoder    encoder.Decoder
-	clients    map[int]string
-	listeners  *collection.ConcurrentMap[string, *ic.Subscriber]
-	mu         sync.Mutex
+	kq            int
+	listenerFd    int
+	Decoder       encoder.Decoder
+	clients       map[int]string
+	listeners     *collection.ConcurrentMap[string, *ic.Subscriber]
+	mu            sync.Mutex
+	isLoopRunning *collection.ConcurrentValue[bool]
 }
 
 var serverInstance *Server
@@ -87,11 +88,12 @@ func newServer(addr string) (*Server, error) {
 	}
 
 	return &Server{
-		kq:         kq,
-		listenerFd: fd,
-		clients:    make(map[int]string),
-		Decoder:    encoder.GOBDecoder{},
-		listeners:  collection.NewConcurrentMap[string, *ic.Subscriber](),
+		kq:            kq,
+		listenerFd:    fd,
+		clients:       make(map[int]string),
+		Decoder:       encoder.GOBDecoder{},
+		listeners:     collection.NewConcurrentMap[string, *ic.Subscriber](),
+		isLoopRunning: collection.NewConcurrentValue(false),
 	}, nil
 }
 
@@ -111,6 +113,11 @@ func (t *Server) UnSubscribe(id string) {
 // It handles new incoming connections and reads data from existing connections.
 // Errors during event processing, connection acceptance, or data reading are logged.
 func (t *Server) Run() {
+	if t.isLoopRunning.Get() {
+		return
+	}
+	t.isLoopRunning.Set(true)
+	log.Info("Started Eventloop...")
 	events := make([]syscall.Kevent_t, 10)
 	for {
 		n, err := syscall.Kevent(t.kq, nil, events, nil)

@@ -26,7 +26,8 @@ message GetProducerConnectionReq {
 
 message GetProducerConnectionResp {
     string address = 1;
-    bool success = 2;
+    string producerId = 2;
+    bool success = 3;
 }
 
 message GetConsumerConnnectionReq {
@@ -36,6 +37,7 @@ message GetConsumerConnnectionReq {
 
 message GetConsumerConnectionResp {
     string address = 1;
-    bool success = 2;
+    string consumerId = 2;
+    bool success = 3;
 }
 

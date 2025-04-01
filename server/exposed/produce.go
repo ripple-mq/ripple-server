@@ -5,6 +5,7 @@ import (
 
 	"github.com/ripple-mq/ripple-server/internal/broker"
 	"github.com/ripple-mq/ripple-server/internal/broker/producer"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 	pb "github.com/ripple-mq/ripple-server/server/exposed/proto"
 )
 
@@ -17,10 +18,10 @@ func (c Server) GetProducerConnection(ctx context.Context, req *pb.GetProducerCo
 		return &pb.GetProducerConnectionResp{Success: false}, err
 	}
 
-	address, err := broker.DecodeToPCServerAddr(data)
+	prod, err := broker.DecodeToPCServerID(data)
 	if err != nil {
 		return &pb.GetProducerConnectionResp{Success: false}, err
 	}
 
-	return &pb.GetProducerConnectionResp{Address: address.Paddr}, nil
+	return &pb.GetProducerConnectionResp{Address: config.Conf.AsyncTCP.Address, ProducerId: prod.ProducerID}, nil
 }

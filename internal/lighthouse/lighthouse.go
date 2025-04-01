@@ -10,6 +10,10 @@ import (
 	u "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 )
 
+func init() {
+	newLH()
+}
+
 // LigthHouse holds io.IO & election.LeaderElectio instance
 type LigthHouse struct {
 	elector *election.LeaderElection
@@ -22,14 +26,15 @@ var (
 )
 
 // GetLightHouse returns singleton instance of *LigthHouse
+// WARN: call in the begining to avoid interupts
 func GetLightHouse() *LigthHouse {
 	once.Do(func() {
-		ligthHouseInstance = new()
+		ligthHouseInstance = newLH()
 	})
 	return ligthHouseInstance
 }
 
-func new() *LigthHouse {
+func newLH() *LigthHouse {
 	ioInstance := io.GetIO()
 	elector := election.NewLeaderElection(ioInstance)
 	ligthHouseInstance = &LigthHouse{io: ioInstance, elector: elector}

@@ -1,33 +1,31 @@
 package server
 
 import (
-	"net"
-
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
 )
 
 type ConsumerServer[T queue.PayloadIF] struct {
-	listenAddr net.Addr        // listening address
-	server     *tcp.Transport  // Consumer server instance
-	q          *queue.Queue[T] // thread safe message queue
+	ID     string              // listening address
+	server *asynctcp.Transport // Consumer server instance
+	q      *queue.Queue[T]     // thread safe message queue
 }
 
 // NewConsumerServer creates and returns a new ConsumerServer instance.
 //
 // It initializes a new server that listens on the given address and uses the provided
 // message queue. The server will accept incoming connections and handle consumer requests.
-func NewConsumerServer[T queue.PayloadIF](addr string, q *queue.Queue[T]) (*ConsumerServer[T], error) {
-	server, err := tcp.NewTransport(addr, onAcceptingConsumer)
+func NewConsumerServer[T queue.PayloadIF](id string, q *queue.Queue[T]) (*ConsumerServer[T], error) {
+	server, err := asynctcp.NewTransport(id, asynctcp.TransportOpts{OnAcceptingConn: onAcceptingConsumer})
 	if err != nil {
 		return nil, err
 	}
 
 	return &ConsumerServer[T]{
-		listenAddr: server.ListenAddr,
-		server:     server,
-		q:          q,
+		ID:     id,
+		server: server,
+		q:      q,
 	}, nil
 }
 
