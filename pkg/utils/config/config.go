@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	Zookeeper struct {
-		Connection_url          string
+		Port                    int
 		Connection_wait_time_ms int
 		Session_timeout_ms      int
 	}

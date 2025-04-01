@@ -48,9 +48,31 @@ func (t *ConcurrentMap[K, V]) Delete(key K) (V, error) {
 func (t *ConcurrentMap[K, V]) Values() []V {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	var servers []V
+	var values []V
 	for _, v := range t.kv {
-		servers = append(servers, v)
+		values = append(values, v)
 	}
-	return servers
+	return values
+}
+
+func (t *ConcurrentMap[K, V]) Keys() []K {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	var keys []K
+	for k := range t.kv {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (t *ConcurrentMap[K, V]) Entries() ([]K, []V) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	var values []V
+	var keys []K
+	for k, v := range t.kv {
+		values = append(values, v)
+		keys = append(keys, k)
+	}
+	return keys, values
 }

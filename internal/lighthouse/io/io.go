@@ -8,8 +8,11 @@ import (
 	"github.com/charmbracelet/log"
 	u "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
+	"github.com/ripple-mq/ripple-server/pkg/utils/env"
 	"github.com/samuel/go-zookeeper/zk"
 )
+
+const localAddr string = "127.0.0.1"
 
 type IO struct {
 	conn *zk.Conn
@@ -33,7 +36,9 @@ func newIO() *IO {
 // It returns a pointer to a Zookeeper connection. If the connection fails, the application
 // will log a fatal error and terminate.
 func connect() *zk.Conn {
-	conn, _, err := zk.Connect([]string{config.Conf.Zookeeper.Connection_url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms*int(time.Millisecond)))
+	url := fmt.Sprintf("%s:%d", env.Get("ZK_IPv4", localAddr), config.Conf.Zookeeper.Port)
+	log.Infof("Attempting zookeeper connection: %s", url)
+	conn, _, err := zk.Connect([]string{url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms*int(time.Millisecond)))
 	if err != nil {
 		log.Fatal("Failed to connect to Zookeeper:", err)
 	}

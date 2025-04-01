@@ -26,7 +26,7 @@ func TestCreateAndRunQueue(t *testing.T) {
 	lighthouse.GetLightHouse()
 	b := broker.NewBroker(topic.TopicBucket{TopicName: "t0", BucketName: "b0"})
 
-	pId, cId := "p1", "c1"
+	pId, cId := "12", "c1"
 	b.Run(pId, cId)
 
 	prod, _ := tcp.NewTransport(":9000", func(conn net.Conn, msg []byte) {})
