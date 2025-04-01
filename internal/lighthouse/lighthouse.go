@@ -3,6 +3,7 @@ package lighthouse
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/election"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/io"
@@ -15,14 +16,17 @@ type LigthHouse struct {
 	io      *io.IO
 }
 
-var ligthHouseInstance *LigthHouse
+var (
+	ligthHouseInstance *LigthHouse
+	once               sync.Once
+)
 
 // GetLightHouse returns singleton instance of *LigthHouse
 func GetLightHouse() *LigthHouse {
-	if ligthHouseInstance != nil {
-		return ligthHouseInstance
-	}
-	return new()
+	once.Do(func() {
+		ligthHouseInstance = new()
+	})
+	return ligthHouseInstance
 }
 
 func new() *LigthHouse {
@@ -75,7 +79,7 @@ func (t *LigthHouse) ReadAllChildsData(path u.Path) ([][]byte, error) {
 	}
 	var data [][]byte
 	for _, addr := range addrs {
-		fullPath := u.Path(u.PathBuilder{}.Base(u.Root()).CD(addr).Create())
+		fullPath := u.Path(u.PathBuilder{}.Base(path).CD(addr).Create())
 		b, err := t.io.Read(fullPath)
 		if err != nil {
 			continue
