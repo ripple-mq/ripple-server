@@ -58,8 +58,9 @@ func (t *Transport) getConnection(addr string) (peer.Peer, error) {
 
 func (t *Transport) addConnection(conn net.Conn) peer.Peer {
 	t.mu.Lock()
-	t.PeersMap[conn.RemoteAddr().String()] = &peer.TCPPeer{Conn: conn}
-	res := t.PeersMap[conn.RemoteAddr().String()]
+	x := conn.RemoteAddr().String()
+	t.PeersMap[x] = &peer.TCPPeer{Conn: conn}
+	res := t.PeersMap[x]
 	t.mu.Unlock()
 	return res
 }

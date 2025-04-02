@@ -20,10 +20,10 @@ type Server struct {
 //
 // It initializes the producer and consumer but doesn't start listening.
 // Call Listen() on the returned server to start listening and avoid a busy port error.
-func NewServer(paddr, caddr string) *Server {
+func NewServer(prodId, conId string) *Server {
 	q := queue.NewQueue[queue.Payload]()
-	p, _ := p.NewProducer().ByteStreamingServer(paddr, q)
-	c, _ := c.NewConsumer().ByteStreamingServer(caddr, q)
+	p, _ := p.NewProducer().ByteStreamingServer(prodId, q)
+	c, _ := c.NewConsumer().ByteStreamingServer(conId, q)
 	return &Server{PS: p, CS: c}
 }
 

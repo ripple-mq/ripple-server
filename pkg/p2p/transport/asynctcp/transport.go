@@ -17,24 +17,29 @@ type Transport struct {
 	ID              string
 	Encoder         encoder.Encoder
 	subscriber      *comm.Subscriber
+	Ack             bool
 	OnAcceptingConn func(msg comm.Message)
 }
 
 type TransportOpts struct {
+	Ack             bool
 	OnAcceptingConn func(msg comm.Message)
 }
 
 // NewTransport creates a new Transport instance with the given ID and optional TransportOpts.
 // It initializes the event loop, subscribes to the server, and sets up the encoder and connection handler.
 func NewTransport(id string, opts ...TransportOpts) (*Transport, error) {
-	var defaultOpts = TransportOpts{OnAcceptingConn: func(msg comm.Message) {}}
+	var defaultOpts = TransportOpts{OnAcceptingConn: func(msg comm.Message) {}, Ack: false}
 
 	if len(opts) > 0 {
 		defaultOpts = opts[0]
 	}
 
 	listenAddr := config.Conf.AsyncTCP.Address
-	el, _ := eventloop.GetServer(listenAddr)
+	el, err := eventloop.GetServer(listenAddr)
+	if err != nil {
+		return nil, err
+	}
 	subscriber := comm.NewSubscriber(id, defaultOpts.OnAcceptingConn)
 	el.Subscribe(id, subscriber)
 	return &Transport{
@@ -43,6 +48,7 @@ func NewTransport(id string, opts ...TransportOpts) (*Transport, error) {
 		ID:              id,
 		subscriber:      subscriber,
 		Encoder:         encoder.GOBEncoder{},
+		Ack:             defaultOpts.Ack,
 		OnAcceptingConn: defaultOpts.OnAcceptingConn,
 	}, nil
 }

@@ -47,7 +47,7 @@ func NewInternalServer(addr string) (*InternalServer, error) {
 // It runs the server in a separate goroutine and logs any errors during the server operation.
 func (t *InternalServer) Listen() error {
 	go func() {
-		log.Infof("started bootstrap server metadata service, listening on port: %s", t.Addr)
+		log.Infof("started internal server metadata service, listening on port: %s", t.Addr)
 		t.registerServer(t.Addr.String())
 		if err := t.server.Serve(*t.listener); err != nil {
 			log.Fatalf("failed to listen on port %s", t.Addr)

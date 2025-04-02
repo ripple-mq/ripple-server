@@ -2,11 +2,11 @@ package producer
 
 import (
 	"bytes"
-	"net"
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
 )
 
 // startPopulatingQueue consumes messages from the server and pushes them to the queue asynchronously.
@@ -33,11 +33,21 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 // onAcceptingProducer handles new Producer connections and logs the connection details along with the metadata message.
 //
 // Note: it will be executed for every new connection
-func onAcceptingProdcuer(conn net.Conn, msg []byte) {
+//
+//	func onAcceptingProdcuer(conn net.Conn, msg []byte) {
+//		var MSG string
+//		err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg), &MSG)
+//		if err != nil {
+//			return
+//		}
+//		log.Infof("Accepting producer: %v, message: %s", conn, MSG)
+//	}
+
+func onAcceptingProdcuer(msg comm.Message) {
 	var MSG string
-	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg), &MSG)
+	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg.Payload), &MSG)
 	if err != nil {
 		return
 	}
-	log.Infof("Accepting producer: %v, message: %s", conn, MSG)
+	log.Infof("Accepting producer: %s  message: %s", msg.RemoteAddr, MSG)
 }

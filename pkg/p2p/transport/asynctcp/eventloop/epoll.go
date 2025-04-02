@@ -10,8 +10,10 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	ic "github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/utils"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/comm"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
@@ -26,12 +28,13 @@ const (
 )
 
 type Server struct {
-	epollFd    int
-	listenerFd int
-	Decoder    encoder.Decoder
-	clients    map[int]string
-	listeners  *collection.ConcurrentMap[string, *ic.Subscriber]
-	mu         sync.Mutex
+	epollFd       int
+	listenerFd    int
+	Decoder       encoder.Decoder
+	clients       *collection.ConcurrentMap[int, string]
+	listeners     *collection.ConcurrentMap[string, *ic.Subscriber]
+	mu            sync.Mutex
+	isLoopRunning *collection.ConcurrentValue[bool]
 }
 
 var serverInstance *Server
@@ -83,11 +86,13 @@ func newServer(addr string) (*Server, error) {
 	}
 
 	return &Server{
-		epollFd:    epollFd,
-		listenerFd: fd,
-		clients:    make(map[int]string),
-		Decoder:    encoder.GOBDecoder{},
-		listeners:  collection.NewConcurrentMap[string, *ic.Subscriber](),
+		epollFd:       epollFd,
+		listenerFd:    fd,
+		clients:       collection.NewConcurrentMap[int, string](),
+		Decoder:       encoder.GOBDecoder{},
+		listeners:     collection.NewConcurrentMap[string, *ic.Subscriber](),
+		mu:            sync.Mutex{},
+		isLoopRunning: collection.NewConcurrentValue(false),
 	}, nil
 }
 
@@ -107,6 +112,12 @@ func (t *Server) UnSubscribe(id string) {
 // It handles new incoming connections and reads data from existing connections.
 // Errors during event processing, connection acceptance, or data reading are logged.
 func (t *Server) Run() {
+	if t.isLoopRunning.Get() {
+		return
+	}
+	t.isLoopRunning.Set(true)
+	defer t.Clean()
+	log.Info("Started Eventloop...")
 	events := make([]syscall.EpollEvent, 10)
 	for {
 		n, err := syscall.EpollWait(t.epollFd, events, -1)
@@ -132,15 +143,14 @@ func (t *Server) Run() {
 // It accepts the connection, adds it to the list of active clients, and registers it with kqueue for read events.
 // Any errors during acceptance, client registration, or kqueue addition are logged and returned.
 func (t *Server) Accept() error {
-	connFd, _, err := syscall.Accept(t.listenerFd)
+	connFd, sa, err := syscall.Accept(t.listenerFd)
 	if err != nil {
 		fmt.Println("Accept error:", err)
 		return fmt.Errorf("accept error: %v", err)
 	}
 
-	t.mu.Lock()
-	t.clients[connFd] = fmt.Sprintf("fd_%d", connFd)
-	t.mu.Unlock()
+	addr := utils.SockaddrToString(sa)
+	t.clients.Set(connFd, addr)
 
 	event := syscall.EpollEvent{
 		Events: uint32(syscall.EPOLLIN) | EPOLLET,
@@ -164,9 +174,10 @@ func (t *Server) Send(address string, data []byte) error {
 	defer t.mu.Unlock()
 
 	// Check if connection exists
-	for fd, addr := range t.clients {
-		if addr == address {
-			_, err := syscall.Write(fd, data)
+	keys, values := t.clients.Entries()
+	for i := range len(keys) {
+		if values[i] == address {
+			_, err := syscall.Write(keys[i], data)
 			return err
 		}
 	}
@@ -199,7 +210,7 @@ func (t *Server) Send(address string, data []byte) error {
 	}
 
 	// Add the connection to the clients map
-	t.clients[fd] = address
+	t.clients.Set(fd, address)
 
 	// Send the data
 	_, err = syscall.Write(fd, data)
@@ -227,11 +238,12 @@ func (t *Server) Read(fd int) {
 			return
 		}
 
+		addr, _ := t.clients.Get(fd)
 		if !subscriber.GreetStatus.Get() {
-			subscriber.Greet(ic.Message{RemoteAddr: t.clients[fd], Payload: payload.Data})
+			subscriber.Greet(ic.Message{RemoteAddr: addr, Payload: payload.Data})
 			subscriber.GreetStatus.Set(true)
 		} else {
-			subscriber.Push(ic.Message{RemoteAddr: t.clients[fd], Payload: payload.Data})
+			subscriber.Push(ic.Message{RemoteAddr: addr, Payload: payload.Data})
 		}
 	} else {
 		t.removeClient(fd)
@@ -240,12 +252,9 @@ func (t *Server) Read(fd int) {
 
 // removeClient closes the client connection and removes it from the active client list.
 func (t *Server) removeClient(fd int) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if _, exists := t.clients[fd]; exists {
+	if _, err := t.clients.Get(fd); err == nil {
 		syscall.Close(fd)
-		delete(t.clients, fd)
+		t.clients.Delete(fd)
 		fmt.Printf("Client %d disconnected\n", fd)
 	}
 }
@@ -258,4 +267,41 @@ func (t *Server) decodeToPayload(data []byte) comm.Payload {
 		fmt.Println("Decode error, ", err)
 	}
 	return msg
+}
+
+func (t *Server) Clean() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	// Stop the event loop if it's running
+	if t.isLoopRunning.Get() {
+		t.isLoopRunning.Set(false)
+	}
+
+	// Close all client connections
+	for fd := range t.clients.Keys() {
+		err := syscall.Close(fd)
+		if err != nil {
+			log.Errorf("Error closing client connection %d: %v", fd, err)
+		} else {
+			log.Infof("Closed client connection %d", fd)
+		}
+	}
+
+	// Close the listener socket
+	if err := syscall.Close(t.listenerFd); err != nil {
+		log.Errorf("Error closing listener: %v", err)
+	} else {
+		log.Info("Listener socket closed.")
+	}
+
+	// Close the kqueue
+	if err := syscall.Close(t.epollFd); err != nil {
+		log.Errorf("Error closing kqueue: %v", err)
+	} else {
+		log.Info("Kqueue closed.")
+	}
+
+	// Clear subscribers
+	return nil
 }

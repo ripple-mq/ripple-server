@@ -28,12 +28,13 @@ const (
 )
 
 type Server struct {
-	kq         int
-	listenerFd int
-	Decoder    encoder.Decoder
-	clients    map[int]string
-	listeners  *collection.ConcurrentMap[string, *ic.Subscriber]
-	mu         sync.Mutex
+	kq            int
+	listenerFd    int
+	Decoder       encoder.Decoder
+	clients       *collection.ConcurrentMap[int, string]
+	listeners     *collection.ConcurrentMap[string, *ic.Subscriber]
+	mu            sync.Mutex
+	isLoopRunning *collection.ConcurrentValue[bool]
 }
 
 var serverInstance *Server
@@ -87,11 +88,13 @@ func newServer(addr string) (*Server, error) {
 	}
 
 	return &Server{
-		kq:         kq,
-		listenerFd: fd,
-		clients:    make(map[int]string),
-		Decoder:    encoder.GOBDecoder{},
-		listeners:  collection.NewConcurrentMap[string, *ic.Subscriber](),
+		kq:            kq,
+		listenerFd:    fd,
+		clients:       collection.NewConcurrentMap[int, string](),
+		Decoder:       encoder.GOBDecoder{},
+		listeners:     collection.NewConcurrentMap[string, *ic.Subscriber](),
+		isLoopRunning: collection.NewConcurrentValue(false),
+		mu:            sync.Mutex{},
 	}, nil
 }
 
@@ -111,9 +114,16 @@ func (t *Server) UnSubscribe(id string) {
 // It handles new incoming connections and reads data from existing connections.
 // Errors during event processing, connection acceptance, or data reading are logged.
 func (t *Server) Run() {
+	if t.isLoopRunning.Get() {
+		return
+	}
+	t.isLoopRunning.Set(true)
+	defer t.Clean()
+	log.Info("Started Eventloop...")
 	events := make([]syscall.Kevent_t, 10)
 	for {
 		n, err := syscall.Kevent(t.kq, nil, events, nil)
+		fmt.Println("receiving , ", n)
 		if err != nil {
 			log.Errorf("error waiting for events: %v", err)
 			break
@@ -150,9 +160,7 @@ func (t *Server) Accept() error {
 	}
 
 	addr := utils.SockaddrToString(sa)
-	t.mu.Lock()
-	t.clients[connFd] = addr
-	t.mu.Unlock()
+	t.clients.Set(connFd, addr)
 
 	kev := syscall.Kevent_t{
 		Ident:  uint64(connFd),
@@ -176,9 +184,10 @@ func (t *Server) Send(address string, data []byte) error {
 	defer t.mu.Unlock()
 
 	// Check if connection exists
-	for fd, addr := range t.clients {
-		if addr == address {
-			_, err := syscall.Write(fd, data)
+	keys, values := t.clients.Entries()
+	for i := range len(keys) {
+		if values[i] == address {
+			_, err := syscall.Write(keys[i], data)
 			return err
 		}
 	}
@@ -209,7 +218,7 @@ func (t *Server) Send(address string, data []byte) error {
 		return fmt.Errorf("failed to register new connection: %v", err)
 	}
 
-	t.clients[fd] = address
+	t.clients.Set(fd, address)
 	_, err = syscall.Write(fd, data)
 	return err
 }
@@ -235,12 +244,12 @@ func (t *Server) Read(event syscall.Kevent_t) error {
 		if err != nil {
 			return err
 		}
-
+		addr, _ := t.clients.Get(int(event.Ident))
 		if !subscriber.GreetStatus.Get() {
-			subscriber.Greet(ic.Message{RemoteAddr: t.clients[int(event.Ident)], Payload: payload.Data})
+			subscriber.Greet(ic.Message{RemoteAddr: addr, Payload: payload.Data})
 			subscriber.GreetStatus.Set(true)
 		} else {
-			subscriber.Push(ic.Message{RemoteAddr: t.clients[int(event.Ident)], Payload: payload.Data})
+			subscriber.Push(ic.Message{RemoteAddr: addr, Payload: payload.Data})
 		}
 	} else {
 		t.removeClient(int(event.Ident))
@@ -251,12 +260,9 @@ func (t *Server) Read(event syscall.Kevent_t) error {
 
 // removeClient closes the client connection and removes it from the active client list.
 func (s *Server) removeClient(fd int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, exists := s.clients[fd]; exists {
+	if _, err := s.clients.Get(fd); err == nil {
 		syscall.Close(fd)
-		delete(s.clients, fd)
+		s.clients.Delete(fd)
 		fmt.Printf("Client %d disconnected\n", fd)
 	}
 }
@@ -269,4 +275,43 @@ func (t *Server) decodeToPayload(data []byte) comm.Payload {
 		fmt.Println("Decode error, ", err)
 	}
 	return msg
+}
+
+// Clean gracefully shuts down the server, closing all client connections,
+// the listener socket, and the kqueue.
+func (t *Server) Clean() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	// Stop the event loop if it's running
+	if t.isLoopRunning.Get() {
+		t.isLoopRunning.Set(false)
+	}
+
+	// Close all client connections
+	for fd := range t.clients.Keys() {
+		err := syscall.Close(fd)
+		if err != nil {
+			log.Errorf("Error closing client connection %d: %v", fd, err)
+		} else {
+			log.Infof("Closed client connection %d", fd)
+		}
+	}
+
+	// Close the listener socket
+	if err := syscall.Close(t.listenerFd); err != nil {
+		log.Errorf("Error closing listener: %v", err)
+	} else {
+		log.Info("Listener socket closed.")
+	}
+
+	// Close the kqueue
+	if err := syscall.Close(t.kq); err != nil {
+		log.Errorf("Error closing kqueue: %v", err)
+	} else {
+		log.Info("Kqueue closed.")
+	}
+
+	// Clear subscribers
+	return nil
 }

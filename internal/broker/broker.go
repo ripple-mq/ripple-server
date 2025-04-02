@@ -7,7 +7,6 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/broker/consumer/loadbalancer"
 	"github.com/ripple-mq/ripple-server/internal/broker/server"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
-	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	lu "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	tp "github.com/ripple-mq/ripple-server/internal/topic"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
@@ -18,15 +17,15 @@ type InternalRPCServerAddr struct {
 	Addr string
 }
 
-// PCServerAddr holds Pub/Sub server addresses
-type PCServerAddr struct {
-	Paddr string // Producer address
-	Caddr string // Consumer address
+// PCServerID holds Pub/Sub server addresses
+type PCServerID struct {
+	ProducerID string // Producer ID
+	ConsumerID string // Consumer ID
 }
 
-// DecodeToPCServerAddr decodes bytes to `PCServerAddr`
-func DecodeToPCServerAddr(data []byte) (PCServerAddr, error) {
-	var addr PCServerAddr
+// DecodeToPCServerID decodes bytes to `PCServerID`
+func DecodeToPCServerID(data []byte) (PCServerID, error) {
+	var addr PCServerID
 	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(data), &addr)
 	return addr, err
 }
@@ -41,12 +40,12 @@ func NewBroker(topic tp.TopicBucket) *Broker {
 }
 
 // Run spins up Pub/Sub servers & starts listening to new conn
-func (t *Broker) Run(paddr, caddr string) error {
-	bs := server.NewServer(paddr, caddr)
+func (t *Broker) Run(pId, cId string) error {
+	bs := server.NewServer(pId, cId)
 	if err := bs.Listen(); err != nil {
 		return err
 	}
-	if err := t.registerAndStartWatching(bs, PCServerAddr{Paddr: paddr, Caddr: caddr}); err != nil {
+	if err := t.registerAndStartWatching(bs, PCServerID{ProducerID: pId, ConsumerID: cId}); err != nil {
 		return err
 	}
 	return nil
@@ -56,7 +55,7 @@ func (t *Broker) Run(paddr, caddr string) error {
 //
 // TODO: Avoid re-registering topic/bucket
 // TODO: Cron job to push messages in batches to read replicas from leader
-func (t *Broker) registerAndStartWatching(bs *server.Server, addr PCServerAddr) error {
+func (t *Broker) registerAndStartWatching(bs *server.Server, addr PCServerID) error {
 	lh := lighthouse.GetLightHouse()
 	path := t.topic.GetPath()
 
@@ -111,7 +110,7 @@ func (t *Broker) CreateBucket() ([]InternalRPCServerAddr, error) {
 
 func (t *Broker) getAllServers() ([][]byte, error) {
 	lh := lighthouse.GetLightHouse()
-	data, err := lh.ReadAllChildsData(utils.PathBuilder{}.Base(utils.Root()).CD("servers").Create())
+	data, err := lh.ReadAllChildsData(lu.PathBuilder{}.Base(lu.Root()).CD("servers").Create())
 	if err != nil || len(data) == 0 {
 		return nil, err
 	}

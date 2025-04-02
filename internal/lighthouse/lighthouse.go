@@ -3,12 +3,15 @@ package lighthouse
 import (
 	"fmt"
 	"log"
-	"sync"
 
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/election"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/io"
 	u "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 )
+
+func init() {
+	newLH()
+}
 
 // LigthHouse holds io.IO & election.LeaderElectio instance
 type LigthHouse struct {
@@ -18,18 +21,18 @@ type LigthHouse struct {
 
 var (
 	ligthHouseInstance *LigthHouse
-	once               sync.Once
 )
 
 // GetLightHouse returns singleton instance of *LigthHouse
+// WARN: call in the begining to avoid interupts
 func GetLightHouse() *LigthHouse {
-	once.Do(func() {
-		ligthHouseInstance = new()
-	})
+	if ligthHouseInstance == nil {
+		ligthHouseInstance = newLH()
+	}
 	return ligthHouseInstance
 }
 
-func new() *LigthHouse {
+func newLH() *LigthHouse {
 	ioInstance := io.GetIO()
 	elector := election.NewLeaderElection(ioInstance)
 	ligthHouseInstance = &LigthHouse{io: ioInstance, elector: elector}
