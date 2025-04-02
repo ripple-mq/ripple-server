@@ -17,6 +17,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/utils"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/comm"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 const (
@@ -128,7 +129,7 @@ func (t *Server) Run() {
 	t.isLoopRunning.Set(true)
 	defer t.Clean()
 	log.Info("Started Eventloop...")
-	events := make([]syscall.EpollEvent, 10)
+	events := make([]syscall.EpollEvent, config.Conf.AsyncTCP.EventLoop.Epoll.Event_buffer_size)
 	for {
 		select {
 		case <-t.shutdownSignalCh:

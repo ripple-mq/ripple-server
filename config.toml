@@ -3,20 +3,35 @@ port=2181
 connection_wait_time_ms=4000
 session_timeout_ms=400000000000
 
-[Server]
-internal_grpc_addr=":8000"
-exposed_grpc_addr=":8080"
-client_grpc_addr=":8909"
+[server.internal]
+addr=":8000"
+
+[server.exposed]
+addr=":8080"
 
 [Topic]
 replicas=3
 
-[EventLoop]
+[gossip.eventloop]
+blocking_mode=true
 max_fd_soft_limit=13824
 task_queue_buffer_size=1000
-kqueue_event_buffer_size=100
-epoll_event_buffer_size=100
-blocking_mode=true
 
-[AsyncTCP]
-address=":8900"
+[gossip.eventloop.kqueue]
+event_buffer_size=100
+
+[gossip.eventloop.epoll]
+event_buffer_size=100
+
+[asynctcp]
+addr=":8900"
+
+[asynctcp.eventloop]
+max_fd_soft_limit=13824
+task_queue_buffer_size=1000
+
+[asynctcp.eventloop.kqueue]
+event_buffer_size=100
+
+[asynctcp.eventloop.epoll]
+event_buffer_size=100

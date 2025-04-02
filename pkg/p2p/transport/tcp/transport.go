@@ -94,7 +94,7 @@ func (t *Transport) SendToAsync(id string, metadata any, data any) error {
 	metadataPayload := comm.Payload{ID: id, Data: metadataBuf.Bytes()}
 	dataPayload := comm.Payload{ID: id, Data: dataBuf.Bytes()}
 
-	return t.Send(config.Conf.AsyncTCP.Address, metadataPayload, dataPayload)
+	return t.Send(config.Conf.AsyncTCP.Addr, metadataPayload, dataPayload)
 }
 
 // Close drops existing connection

@@ -33,16 +33,6 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 // onAcceptingProducer handles new Producer connections and logs the connection details along with the metadata message.
 //
 // Note: it will be executed for every new connection
-//
-//	func onAcceptingProdcuer(conn net.Conn, msg []byte) {
-//		var MSG string
-//		err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg), &MSG)
-//		if err != nil {
-//			return
-//		}
-//		log.Infof("Accepting producer: %v, message: %s", conn, MSG)
-//	}
-
 func onAcceptingProdcuer(msg comm.Message) {
 	var MSG string
 	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg.Payload), &MSG)

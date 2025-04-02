@@ -23,5 +23,5 @@ func (c Server) GetConsumerConnection(ctx context.Context, req *pb.GetConsumerCo
 		return &pb.GetConsumerConnectionResp{Success: false}, err
 	}
 
-	return &pb.GetConsumerConnectionResp{Address: config.Conf.AsyncTCP.Address, ConsumerId: cons.ConsumerID}, nil
+	return &pb.GetConsumerConnectionResp{Address: config.Conf.AsyncTCP.Addr, ConsumerId: cons.ConsumerID}, nil
 }
