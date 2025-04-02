@@ -8,6 +8,7 @@ import (
 	p "github.com/ripple-mq/ripple-server/internal/broker/producer"
 	ps "github.com/ripple-mq/ripple-server/internal/broker/producer/server"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
+	"github.com/ripple-mq/ripple-server/internal/topic"
 )
 
 // Server holds bothe Pub/Sub server
@@ -20,10 +21,10 @@ type Server struct {
 //
 // It initializes the producer and consumer but doesn't start listening.
 // Call Listen() on the returned server to start listening and avoid a busy port error.
-func NewServer(prodId, conId string) *Server {
+func NewServer(prodId, conId string, topic topic.TopicBucket) *Server {
 	q := queue.NewQueue[queue.Payload]()
-	p, _ := p.NewProducer().ByteStreamingServer(prodId, q)
-	c, _ := c.NewConsumer().ByteStreamingServer(conId, q)
+	p, _ := p.NewProducer(topic).ByteStreamingServer(prodId, q)
+	c, _ := c.NewConsumer(topic).ByteStreamingServer(conId, q)
 	return &Server{PS: p, CS: c}
 }
 
@@ -40,8 +41,12 @@ func (t *Server) Listen() error {
 
 // Stop stops existing pub/sub servers accepting new connections
 //
-// Note: existing connection will continue to serve
+// Note: existing connection will continue to serve only if p2p server is being used
 func (t *Server) Stop() {
 	t.PS.Stop()
 	t.CS.Stop()
+}
+
+func (t *Server) InformLeaderStatus() {
+	t.PS.InformLeaderStatus()
 }

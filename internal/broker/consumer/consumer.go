@@ -11,10 +11,11 @@ import (
 )
 
 type Consumer struct {
+	topic tp.TopicBucket
 }
 
-func NewConsumer() *Consumer {
-	return &Consumer{}
+func NewConsumer(topic tp.TopicBucket) *Consumer {
+	return &Consumer{topic}
 }
 
 // ByteStreamingServer creates a ConsumerServer to consume messages from a queue.
@@ -38,6 +39,6 @@ func (t *Consumer) GetServerConnection(topicName string, bucketName string) ([]b
 		return nil, err
 	}
 
-	index := loadbalancer.NewReadReqLoadBalancer().GetIndex(len(data))
+	index := loadbalancer.NewReadReqLoadBalancer().GetIndex(len(data) - 1)
 	return data[index], nil
 }

@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp"
 )
 
 type ConsumerServer[T queue.PayloadIF] struct {
@@ -41,7 +41,7 @@ func (t *ConsumerServer[T]) Listen() error {
 
 // Stop stops listening to new Consumer connections
 //
-// Note: It still continues to serve existing connections
+// Note: It still continues to serve existing connections only if p2p server is being used
 func (t *ConsumerServer[T]) Stop() {
 	if err := t.server.Stop(); err != nil {
 		log.Errorf("failed to stop: %v", err)

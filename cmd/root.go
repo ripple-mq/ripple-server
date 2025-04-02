@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/ripple-mq/ripple-server/internal/lighthouse"
-	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
+	"github.com/ripple-mq/ripple-server/pkg/utils/env"
+	"github.com/ripple-mq/ripple-server/server"
 )
 
 const (
@@ -27,18 +27,14 @@ func Execute() {
 
 	log.Info(cfg)
 
-	lh := lighthouse.GetLightHouse()
+	// addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", ""), config.Conf.AsyncTCP.Port)
+	// el, _ := eventloop.GetServer(addr)
+	// go el.Run()
 
-	addr := RandLocalAddr()
-
-	lh.StartElectLoop(utils.Path{Cmp: []string{"topics", "topic-0", "bucket-0"}}, addr, func(path utils.Path) {})
-
-	// These functions demonstrate two separate checks to detect if the code is being
-	// run inside a docker container in debug mode, or production mode!
-	//
-	// Note: Valid only for docker containers generated using the Makefile command
-	FirstCheck()
-	SecondCheck()
+	internal := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", "127.0.0.1"), 8890)
+	port := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", "127.0.0.1"), 8891)
+	s := server.NewServer(internal, port)
+	s.Listen()
 
 	select {}
 

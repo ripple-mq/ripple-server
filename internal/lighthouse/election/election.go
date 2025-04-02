@@ -31,9 +31,10 @@ func NewLeaderElection(io *io.IO) *LeaderElection {
 
 // Start begins the leader election process.
 //
-// It initiates the leader election by calling `elect`, logs an error if it fails,
-// and triggers the fatal signal. It also starts watching the leader election
-// process in a separate goroutine.
+//   - It initiates the leader election by calling `elect`
+//   - logs an error if it fails
+//   - triggers the fatal signal.
+//   - starts watching the leader election process asynchronously.
 func (t *LeaderElection) Start(fpath u.Path, data any) {
 	if err := t.elect(fpath, data); err != nil {
 		log.Errorf("failed to elect leader: %v", err)

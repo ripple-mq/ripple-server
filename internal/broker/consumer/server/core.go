@@ -8,10 +8,11 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
 )
 
 // AskQuery needs a standard serialization to make it compatible with all language/frameworks
+// Consumer client need to poll with AskQuery to initiate streaming
 type AskQuery struct {
 	Count int
 	ID    string
@@ -31,7 +32,7 @@ func (t *ConsumerServer[T]) startAcceptingConsumeReq() {
 			if err != nil {
 				continue
 			}
-			go t.handleConsumeReq(query, clientAddr)
+			go t.handleConsumeReq(query, clientAddr.Addr)
 		}
 	}()
 }
@@ -46,7 +47,6 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 	lh := lighthouse.GetLightHouse()
 	data, _ := lh.Read(getConsumerPath(query.ID))
 	offset, _ := strconv.Atoi(string(data))
-	defer lh.Write(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 
 	for {
 		messages := t.q.SubArray(offset, offset+query.Count)
@@ -56,8 +56,10 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 		}
 		if err := t.server.Send(clientAddr, struct{}{}, messages); err != nil {
 			log.Errorf("failed to send: %v", err)
+			break
 		}
 		offset += len(messages)
+		go lh.Write(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 	}
 }
 

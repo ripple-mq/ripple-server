@@ -1,17 +1,59 @@
 version: "3.8"
 
 services:
-  ripple-server:
+  ripple-server-1:
     build:
       context: .
       dockerfile: docker/test/Dockerfile
     networks:
       custom-net:
         ipv4_address: 172.28.0.2
+    ports:
+      - "8901:8790" # eventloop running
+      - "8891:8891" # bootstrap gRPC
     depends_on:
       - zookeeper
     environment:
-      - ZK_HOST=zookeeper
+      - ZK_IPv4=172.28.0.3
+      - ASYNC_TCP_IPv4=172.28.0.2
+      - ZK_PORT=2181
+    restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  ripple-server-2:
+    build:
+      context: .
+      dockerfile: docker/test/Dockerfile
+    networks:
+      custom-net:
+        ipv4_address: 172.28.0.4
+
+    depends_on:
+      - zookeeper
+    environment:
+      - ZK_IPv4=172.28.0.3
+      - ASYNC_TCP_IPv4=172.28.0.4
+      - ZK_PORT=2181
+    restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      
+  ripple-server-3:
+    build:
+      context: .
+      dockerfile: docker/test/Dockerfile
+    networks:
+      custom-net:
+        ipv4_address: 172.28.0.5
+
+    depends_on:
+      - zookeeper
+    environment:
+      - ZK_IPv4=172.28.0.3
+      - ASYNC_TCP_IPv4=172.28.0.5
       - ZK_PORT=2181
     restart: always
     dns:

@@ -2,8 +2,9 @@ package broker
 
 import (
 	"bytes"
+	"fmt"
 
-	"github.com/charmbracelet/log"
+	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/consumer/loadbalancer"
 	"github.com/ripple-mq/ripple-server/internal/broker/server"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
@@ -11,41 +12,31 @@ import (
 	tp "github.com/ripple-mq/ripple-server/internal/topic"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
+	"github.com/ripple-mq/ripple-server/pkg/utils/env"
 )
 
 type InternalRPCServerAddr struct {
 	Addr string
 }
 
-// PCServerID holds Pub/Sub server addresses
-type PCServerID struct {
-	ProducerID string // Producer ID
-	ConsumerID string // Consumer ID
-}
-
-// DecodeToPCServerID decodes bytes to `PCServerID`
-func DecodeToPCServerID(data []byte) (PCServerID, error) {
-	var addr PCServerID
-	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(data), &addr)
-	return addr, err
-}
-
 type Broker struct {
-	topic tp.TopicBucket
+	topic         tp.TopicBucket
+	WatchLeaderCh chan struct{}
 }
 
 // NewBroker returns `*Broker` with specified topic
 func NewBroker(topic tp.TopicBucket) *Broker {
-	return &Broker{topic}
+	return &Broker{topic: topic, WatchLeaderCh: make(chan struct{})}
 }
 
 // Run spins up Pub/Sub servers & starts listening to new conn
 func (t *Broker) Run(pId, cId string) error {
-	bs := server.NewServer(pId, cId)
+	bs := server.NewServer(pId, cId, t.topic)
 	if err := bs.Listen(); err != nil {
 		return err
 	}
-	if err := t.registerAndStartWatching(bs, PCServerID{ProducerID: pId, ConsumerID: cId}); err != nil {
+	addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", ""), config.Conf.AsyncTCP.Port)
+	if err := t.registerAndStartWatching(bs, comm.PCServerID{BrokerAddr: addr, ProducerID: pId, ConsumerID: cId}); err != nil {
 		return err
 	}
 	return nil
@@ -55,7 +46,7 @@ func (t *Broker) Run(pId, cId string) error {
 //
 // TODO: Avoid re-registering topic/bucket
 // TODO: Cron job to push messages in batches to read replicas from leader
-func (t *Broker) registerAndStartWatching(bs *server.Server, addr PCServerID) error {
+func (t *Broker) registerAndStartWatching(bs *server.Server, addr comm.PCServerID) error {
 	lh := lighthouse.GetLightHouse()
 	path := t.topic.GetPath()
 
@@ -63,7 +54,8 @@ func (t *Broker) registerAndStartWatching(bs *server.Server, addr PCServerID) er
 	if err != nil {
 		return err
 	}
-	fatalCh := lh.StartElectLoop(followerPath, addr, onBecommingLeader)
+	fatalCh := lh.StartElectLoop(followerPath, addr, t.WatchLeaderCh)
+	go t.watchLeader(bs)
 	go t.RunCleanupLoop(bs, fatalCh)
 	return nil
 }
@@ -79,15 +71,15 @@ func (t *Broker) RunCleanupLoop(server *server.Server, ch <-chan struct{}) {
 	}
 }
 
-// onBecommingLeader will be executed when current broker becomes leader
+// watchLeader will be executed when current broker becomes leader
 //
 // TODO: Spin up cron job to distribute messages to follower in batches
-func onBecommingLeader(path lu.Path) {
-	log.Infof("Heyyyyy, I became leader: %v", path)
+func (t *Broker) watchLeader(bs *server.Server) {
+	for {
+		<-t.WatchLeaderCh
+		bs.InformLeaderStatus()
+	}
 }
-
-//  /servers
-//		/s-0000000001010101202nsa02 internal  gRPC address
 
 func (t *Broker) CreateBucket() ([]InternalRPCServerAddr, error) {
 	servers, err := t.getAllServers()

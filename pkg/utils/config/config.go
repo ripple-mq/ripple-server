@@ -18,6 +18,9 @@ type Config struct {
 		Exposed_grpc_addr  string
 		Client_grpc_addr   string
 	}
+	Broker struct {
+		ackLevel int
+	}
 	Topic struct {
 		Replicas int
 	}
@@ -29,7 +32,7 @@ type Config struct {
 		Blocking_mode            bool
 	}
 	AsyncTCP struct {
-		Address string
+		Port int
 	}
 }
 

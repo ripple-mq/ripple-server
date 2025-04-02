@@ -7,6 +7,8 @@ import (
 	"github.com/charmbracelet/log"
 )
 
+// connectionLoop continuously accepts incoming connections on the listener,
+// adds them to the connection pool, and handles each connection in a new goroutine.
 func (t *Transport) connectionLoop() {
 	defer func() {
 		log.Infof("Shutting down server: %s", t.ListenAddr)

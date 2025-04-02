@@ -4,6 +4,6 @@ services:
     image: zookeeper
     container_name: zookeeper
     ports:
-      - "2181:2181"
+      - "2182:2181"
     volumes:
       - ./zoo.cfg:/conf/zoo.cfg:Z

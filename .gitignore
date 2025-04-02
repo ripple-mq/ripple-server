@@ -6,6 +6,8 @@ data
 .vscode/**
 .idea/**
 
+notes
+
 # Mac only
 .DS_Store/**
 
