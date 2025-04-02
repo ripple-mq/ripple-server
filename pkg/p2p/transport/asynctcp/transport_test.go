@@ -166,7 +166,9 @@ func TestTransport_Recieve(t *testing.T) {
 			if err := client.SendToAsync(tt.serverId, struct{}{}, tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Transport.Send() error = %v, wantErr %v", err, tt.wantErr)
 			}
+
 			time.Sleep(1000 * time.Millisecond)
+			server.Stop()
 		})
 	}
 }

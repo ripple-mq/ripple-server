@@ -74,7 +74,9 @@ func (t *Transport) Send(addr string, metadata any, data any) error {
 	return nil
 }
 
+// Stop stops eventloop server. Be carefull while using as it has global impact.
 func (t *Transport) Stop() error {
+	t.EventLoop.Stop()
 	return nil
 }
 

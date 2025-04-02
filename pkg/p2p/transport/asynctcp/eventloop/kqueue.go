@@ -28,21 +28,27 @@ const (
 )
 
 type Server struct {
-	kq            int
-	listenerFd    int
-	Decoder       encoder.Decoder
-	clients       *collection.ConcurrentMap[int, string]
-	listeners     *collection.ConcurrentMap[string, *ic.Subscriber]
-	mu            sync.Mutex
-	isLoopRunning *collection.ConcurrentValue[bool]
+	kq          int
+	listenerFd  int
+	clients     *collection.ConcurrentMap[int, string]
+	listeners   *collection.ConcurrentMap[string, *ic.Subscriber]
+	tcpListener net.Listener
+
+	Decoder          encoder.Decoder
+	mu               sync.Mutex
+	isLoopRunning    *collection.ConcurrentValue[bool]
+	shutdownSignalCh chan struct{}
 }
 
 var serverInstance *Server
+var instanceLock = sync.Mutex{}
 
 // GetServer returns a singleton instance of the Server for the given address.
 // It initializes the server only once and reuses the existing instance on subsequent calls.
+//
+// Note: Reinstantiation is only possible after stutting down existing one
 func GetServer(addr string) (*Server, error) {
-	if serverInstance != nil {
+	if !instanceLock.TryLock() {
 		return serverInstance, nil
 	}
 	sv, err := newServer(addr)
@@ -88,13 +94,15 @@ func newServer(addr string) (*Server, error) {
 	}
 
 	return &Server{
-		kq:            kq,
-		listenerFd:    fd,
-		clients:       collection.NewConcurrentMap[int, string](),
-		Decoder:       encoder.GOBDecoder{},
-		listeners:     collection.NewConcurrentMap[string, *ic.Subscriber](),
-		isLoopRunning: collection.NewConcurrentValue(false),
-		mu:            sync.Mutex{},
+		kq:               kq,
+		listenerFd:       fd,
+		clients:          collection.NewConcurrentMap[int, string](),
+		Decoder:          encoder.GOBDecoder{},
+		listeners:        collection.NewConcurrentMap[string, *ic.Subscriber](),
+		isLoopRunning:    collection.NewConcurrentValue(false),
+		mu:               sync.Mutex{},
+		shutdownSignalCh: make(chan struct{}),
+		tcpListener:      listener,
 	}, nil
 }
 
@@ -122,27 +130,36 @@ func (t *Server) Run() {
 	log.Info("Started Eventloop...")
 	events := make([]syscall.Kevent_t, 10)
 	for {
-		n, err := syscall.Kevent(t.kq, nil, events, nil)
-		fmt.Println("receiving , ", n)
-		if err != nil {
-			log.Errorf("error waiting for events: %v", err)
-			break
-		}
-
-		for i := range n {
-			event := events[i]
-			if event.Flags&syscall.EV_ERROR != 0 {
-				log.Errorf("event error: %v", event)
-				continue
+		select {
+		case <-t.shutdownSignalCh:
+			fmt.Println("HI")
+			return
+		default:
+			n, err := syscall.Kevent(t.kq, nil, events, &syscall.Timespec{Sec: 1})
+			if err != nil {
+				if errno, ok := err.(syscall.Errno); ok && errno == syscall.EBADF {
+					log.Errorf("kqueue closed, shutting down gracefully.")
+					return
+				}
+				log.Errorf("error waiting for events: %v", err)
+				break
 			}
 
-			if int(event.Ident) == t.listenerFd {
-				if err := t.Accept(); err != nil {
-					log.Errorf("failed to accept new connection: %v", err)
+			for i := range n {
+				event := events[i]
+				if event.Flags&syscall.EV_ERROR != 0 {
+					log.Errorf("event error: %v", event)
+					continue
 				}
-			} else {
-				if err := t.Read(event); err != nil {
-					log.Errorf("failed to read message: %v", err)
+
+				if int(event.Ident) == t.listenerFd {
+					if err := t.Accept(); err != nil {
+						log.Errorf("failed to accept new connection: %v", err)
+					}
+				} else {
+					if err := t.Read(event); err != nil {
+						log.Errorf("failed to read message: %v", err)
+					}
 				}
 			}
 		}
@@ -242,7 +259,9 @@ func (t *Server) Read(event syscall.Kevent_t) error {
 		payload := t.decodeToPayload(buf[:n])
 		subscriber, err := t.listeners.Get(payload.ID)
 		if err != nil {
-			return err
+			// Invalid Id might indicate unsubscribed servers, so dropping connection
+			t.removeClient(int(event.Ident))
+			return fmt.Errorf("no listeners found with ID %s, error = %v", payload.ID, err)
 		}
 		addr, _ := t.clients.Get(int(event.Ident))
 		if !subscriber.GreetStatus.Get() {
@@ -283,11 +302,12 @@ func (t *Server) Clean() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	// Stop the event loop if it's running
-	if t.isLoopRunning.Get() {
-		t.isLoopRunning.Set(false)
-	}
+	// clearing serverInstance, so that one can reinstantiate eventloop smoothly
+	instanceLock.Unlock()
 
+	if err := t.tcpListener.Close(); err != nil {
+		log.Errorf("failed to close listener at %s, error= %v", t.tcpListener.Addr(), err)
+	}
 	// Close all client connections
 	for fd := range t.clients.Keys() {
 		err := syscall.Close(fd)
@@ -314,4 +334,9 @@ func (t *Server) Clean() error {
 
 	// Clear subscribers
 	return nil
+}
+
+// Stop stops server, blocking in nature
+func (t *Server) Stop() {
+	t.shutdownSignalCh <- struct{}{}
 }
