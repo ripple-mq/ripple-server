@@ -129,7 +129,7 @@ func TestEventLoopIntegration(t *testing.T) {
 			mockConf := config.GetMockConfig()
 			defer mockConf.Reset()
 
-			config.Conf.EventLoop.Task_queue_buffer_size = tt.taskBufferSize
+			config.Conf.Gossip.EventLoop.Task_queue_buffer_size = tt.taskBufferSize
 
 			for _, server := range tt.servers {
 				server, _ := tcp.NewTransport(server, func(conn net.Conn, msg []byte) {})

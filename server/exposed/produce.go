@@ -23,5 +23,5 @@ func (c Server) GetProducerConnection(ctx context.Context, req *pb.GetProducerCo
 		return &pb.GetProducerConnectionResp{Success: false}, err
 	}
 
-	return &pb.GetProducerConnectionResp{Address: config.Conf.AsyncTCP.Address, ProducerId: prod.ProducerID}, nil
+	return &pb.GetProducerConnectionResp{Address: config.Conf.AsyncTCP.Addr, ProducerId: prod.ProducerID}, nil
 }

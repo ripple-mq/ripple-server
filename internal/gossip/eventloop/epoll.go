@@ -54,7 +54,7 @@ func newEventLoop() (*EventLoop, error) {
 	eventLoop := EventLoop{
 		q:             queue.NewQueue[Task](),
 		epFd:          epFd,
-		events:        make([]unix.EpollEvent, config.Conf.EventLoop.Epoll_event_buffer_size),
+		events:        make([]unix.EpollEvent, config.Conf.Gossip.EventLoop.Epoll.Event_buffer_size),
 		dump:          collection.NewConcurrentMap[int, Task](),
 		registeredFDs: make(map[int]bool),
 	}
@@ -63,7 +63,7 @@ func newEventLoop() (*EventLoop, error) {
 
 // AddTask pushes Task to task queue
 func (t *EventLoop) AddTask(task Task) error {
-	if t.q.Size() == int(config.Conf.EventLoop.Task_queue_buffer_size) {
+	if t.q.Size() == int(config.Conf.Gossip.EventLoop.Task_queue_buffer_size) {
 		return fmt.Errorf("task buffer overflow")
 	}
 	t.q.Push(task)

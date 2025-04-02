@@ -35,7 +35,7 @@ func NewTransport(id string, opts ...TransportOpts) (*Transport, error) {
 		defaultOpts = opts[0]
 	}
 
-	listenAddr := config.Conf.AsyncTCP.Address
+	listenAddr := config.Conf.AsyncTCP.Addr
 	el, err := eventloop.GetServer(listenAddr)
 	if err != nil {
 		return nil, err
