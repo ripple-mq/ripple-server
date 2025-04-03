@@ -4,9 +4,12 @@ import (
 	"bytes"
 
 	"github.com/charmbracelet/log"
+	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
+	"github.com/ripple-mq/ripple-server/internal/gossip"
+	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
+	acomm "github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
 )
 
 // startPopulatingQueue consumes messages from the server and pushes them to the queue asynchronously.
@@ -23,6 +26,24 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 			}
 
 			t.q.Push(data)
+
+			// get all followers for t.topicBucket
+			lh := lighthouse.GetLightHouse()
+			followers, err := lh.ReadFollowers(t.topic.GetPath())
+			if err != nil {
+				continue
+			}
+
+			// broadcasting messages to all followers
+			for _, s := range followers {
+				addr, err := comm.DecodeToPCServerID(s)
+				if err != nil {
+					continue
+				}
+				gossip.Task{Server: t.ackServer, AckClientAddr: prodAddr, ReceiverAddr: addr.BrokerAddr, ReceiverID: addr.ProducerID, Data: data}.Exec()
+			}
+
+			// followers
 			if t.server.Ack {
 				t.server.Send(prodAddr, struct{}{}, queue.Ack{Id: data.GetID()})
 			}
@@ -33,17 +54,7 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 // onAcceptingProducer handles new Producer connections and logs the connection details along with the metadata message.
 //
 // Note: it will be executed for every new connection
-//
-//	func onAcceptingProdcuer(conn net.Conn, msg []byte) {
-//		var MSG string
-//		err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg), &MSG)
-//		if err != nil {
-//			return
-//		}
-//		log.Infof("Accepting producer: %v, message: %s", conn, MSG)
-//	}
-
-func onAcceptingProdcuer(msg comm.Message) {
+func onAcceptingProdcuer(msg acomm.Message) {
 	var MSG string
 	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg.Payload), &MSG)
 	if err != nil {

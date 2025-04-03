@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 
-	"github.com/ripple-mq/ripple-server/internal/broker"
+	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/producer"
-	"github.com/ripple-mq/ripple-server/pkg/utils/config"
+	"github.com/ripple-mq/ripple-server/internal/topic"
 	pb "github.com/ripple-mq/ripple-server/server/exposed/proto"
 )
 
@@ -13,15 +13,16 @@ import (
 // Given a topic and bucket, it fetches the producer server's connection address.
 func (c Server) GetProducerConnection(ctx context.Context, req *pb.GetProducerConnectionReq) (*pb.GetProducerConnectionResp, error) {
 
-	data, err := producer.NewProducer().GetServerConnection(req.Topic, req.Bucket)
+	bucket := topic.TopicBucket{TopicName: req.Topic, BucketName: req.Bucket}
+	data, err := producer.NewProducer(bucket).GetServerConnection(req.Topic, req.Bucket)
 	if err != nil {
 		return &pb.GetProducerConnectionResp{Success: false}, err
 	}
 
-	prod, err := broker.DecodeToPCServerID(data)
+	prod, err := comm.DecodeToPCServerID(data)
 	if err != nil {
 		return &pb.GetProducerConnectionResp{Success: false}, err
 	}
 
-	return &pb.GetProducerConnectionResp{Address: config.Conf.AsyncTCP.Address, ProducerId: prod.ProducerID}, nil
+	return &pb.GetProducerConnectionResp{Address: prod.BrokerAddr, ProducerId: prod.ProducerID}, nil
 }

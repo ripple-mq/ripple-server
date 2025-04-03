@@ -11,7 +11,6 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/peer"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/comm"
-	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 type Message struct {
@@ -87,14 +86,14 @@ func (t *Transport) Send(addr string, metadata any, data any) error {
 }
 
 // SendToAsync wraps data with server id , sends to async server
-func (t *Transport) SendToAsync(id string, metadata any, data any) error {
+func (t *Transport) SendToAsync(addr string, id string, metadata any, data any) error {
 	var metadataBuf, dataBuf bytes.Buffer
 	encoder.GOBEncoder{}.Encode(metadata, &metadataBuf)
 	encoder.GOBEncoder{}.Encode(data, &dataBuf)
 	metadataPayload := comm.Payload{ID: id, Data: metadataBuf.Bytes()}
 	dataPayload := comm.Payload{ID: id, Data: dataBuf.Bytes()}
 
-	return t.Send(config.Conf.AsyncTCP.Address, metadataPayload, dataPayload)
+	return t.Send(addr, metadataPayload, dataPayload)
 }
 
 // Close drops existing connection

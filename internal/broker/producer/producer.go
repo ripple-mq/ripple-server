@@ -10,11 +10,12 @@ import (
 )
 
 type Producer struct {
+	topic tp.TopicBucket
 }
 
 // NewProducer returns *Producer instance
-func NewProducer() *Producer {
-	return &Producer{}
+func NewProducer(topic tp.TopicBucket) *Producer {
+	return &Producer{topic}
 }
 
 // ByteStreamingServer creates a Pub server that listens for messages and processes them using the provided message queue.
@@ -22,7 +23,7 @@ func NewProducer() *Producer {
 // It initializes a server to accept byte-streamed messages and uses the given queue to handle those messages.
 // If server creation fails, an error is returned.
 func (t *Producer) ByteStreamingServer(id string, q *queue.Queue[queue.Payload]) (*ps.ProducerServer[queue.Payload], error) {
-	server, err := ps.NewProducerServer(id, q)
+	server, err := ps.NewProducerServer(id, q, t.topic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to spin up server at %s: %v", id, err)
 	}

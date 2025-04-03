@@ -52,7 +52,7 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 		messages := t.q.SubArray(offset, offset+query.Count)
 		// Should i terminate current response if no message available for now
 		if len(messages) == 0 {
-			continue
+			break
 		}
 		if err := t.server.Send(clientAddr, struct{}{}, messages); err != nil {
 			log.Errorf("failed to send: %v", err)

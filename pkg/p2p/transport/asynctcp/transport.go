@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"time"
 
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/eventloop"
+	tcpcomm "github.com/ripple-mq/ripple-server/pkg/p2p/transport/comm"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
@@ -74,6 +76,16 @@ func (t *Transport) Send(addr string, metadata any, data any) error {
 	return nil
 }
 
+func (t *Transport) SendToAsync(addr string, id string, metadata any, data any) error {
+	var metadataBuf, dataBuf bytes.Buffer
+	encoder.GOBEncoder{}.Encode(metadata, &metadataBuf)
+	encoder.GOBEncoder{}.Encode(data, &dataBuf)
+	metadataPayload := tcpcomm.Payload{ID: id, Data: metadataBuf.Bytes()}
+	dataPayload := tcpcomm.Payload{ID: id, Data: dataBuf.Bytes()}
+
+	return t.Send(addr, metadataPayload, dataPayload)
+}
+
 // Stop stops eventloop server. Be carefull while using as it has global impact.
 func (t *Transport) Stop() error {
 	t.EventLoop.Stop()
@@ -82,9 +94,12 @@ func (t *Transport) Stop() error {
 
 // Consume retrieves the next message from the subscriber, decodes it using the provided decoder,
 // and writes the decoded data to the given writer. It returns the remote address of the sender or an error if decoding fails.
-func (t *Transport) Consume(decoder encoder.Decoder, writer any) (string, error) {
-	data := t.subscriber.Poll()
-	err := decoder.Decode(bytes.NewBuffer(data.Payload), writer)
+func (t *Transport) Consume(decoder encoder.Decoder, writer any, timeout ...<-chan time.Time) (string, error) {
+	data, err := t.subscriber.Poll(timeout...)
+	if err != nil {
+		return "", err
+	}
+	err = decoder.Decode(bytes.NewBuffer(data.Payload), writer)
 	if err != nil {
 		return "", err
 	}

@@ -11,10 +11,11 @@ import (
 )
 
 type Consumer struct {
+	topic tp.TopicBucket
 }
 
-func NewConsumer() *Consumer {
-	return &Consumer{}
+func NewConsumer(topic tp.TopicBucket) *Consumer {
+	return &Consumer{topic}
 }
 
 // ByteStreamingServer creates a ConsumerServer to consume messages from a queue.

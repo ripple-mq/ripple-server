@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/charmbracelet/log"
+	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/consumer/loadbalancer"
 	"github.com/ripple-mq/ripple-server/internal/broker/server"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
@@ -17,19 +18,6 @@ type InternalRPCServerAddr struct {
 	Addr string
 }
 
-// PCServerID holds Pub/Sub server addresses
-type PCServerID struct {
-	ProducerID string // Producer ID
-	ConsumerID string // Consumer ID
-}
-
-// DecodeToPCServerID decodes bytes to `PCServerID`
-func DecodeToPCServerID(data []byte) (PCServerID, error) {
-	var addr PCServerID
-	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(data), &addr)
-	return addr, err
-}
-
 type Broker struct {
 	topic tp.TopicBucket
 }
@@ -41,11 +29,11 @@ func NewBroker(topic tp.TopicBucket) *Broker {
 
 // Run spins up Pub/Sub servers & starts listening to new conn
 func (t *Broker) Run(pId, cId string) error {
-	bs := server.NewServer(pId, cId)
+	bs := server.NewServer(pId, cId, t.topic)
 	if err := bs.Listen(); err != nil {
 		return err
 	}
-	if err := t.registerAndStartWatching(bs, PCServerID{ProducerID: pId, ConsumerID: cId}); err != nil {
+	if err := t.registerAndStartWatching(bs, comm.PCServerID{BrokerAddr: config.Conf.AsyncTCP.Address, ProducerID: pId, ConsumerID: cId}); err != nil {
 		return err
 	}
 	return nil
@@ -55,7 +43,7 @@ func (t *Broker) Run(pId, cId string) error {
 //
 // TODO: Avoid re-registering topic/bucket
 // TODO: Cron job to push messages in batches to read replicas from leader
-func (t *Broker) registerAndStartWatching(bs *server.Server, addr PCServerID) error {
+func (t *Broker) registerAndStartWatching(bs *server.Server, addr comm.PCServerID) error {
 	lh := lighthouse.GetLightHouse()
 	path := t.topic.GetPath()
 
