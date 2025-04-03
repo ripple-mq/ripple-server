@@ -14,6 +14,7 @@ type ServerAddr struct {
 
 type Message struct {
 	RemoteAddr string
+	RemoteID   string
 	Payload    []byte
 }
 

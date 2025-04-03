@@ -8,11 +8,11 @@ import (
 // It listens for leader signals and executes the provided callback when becoming the leader.
 //
 //	Async
-func (t *LigthHouse) StartElectLoop(path utils.Path, data any, onBecommingLeader func(path utils.Path)) <-chan struct{} {
+func (t *LigthHouse) StartElectLoop(path utils.Path, data any, onBecommingLeaderCh chan<- struct{}) <-chan struct{} {
 	t.elector.Start(path, data)
 	go func() {
 		for range t.elector.ListenForLeaderSignal() {
-			go onBecommingLeader(path)
+			onBecommingLeaderCh <- struct{}{}
 		}
 	}()
 	return t.elector.ListenForFatalSignal()

@@ -8,6 +8,7 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/internal/topic"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
+	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 
 type ProducerServer[T queue.PayloadIF] struct {
@@ -16,6 +17,7 @@ type ProducerServer[T queue.PayloadIF] struct {
 	q         *queue.Queue[T]     // thread safe message queue
 	topic     topic.TopicBucket
 	ackServer *asynctcp.Transport
+	amILeader *collection.ConcurrentValue[bool]
 }
 
 // NewProducerServer creates a new ProducerServer to accept data of type T.
@@ -30,11 +32,12 @@ func NewProducerServer[T queue.PayloadIF](id string, q *queue.Queue[T], topic to
 	}
 
 	return &ProducerServer[T]{
-		ID:        server.ID,
+		ID:        server.ListenAddr.ID,
 		server:    server,
 		q:         q,
 		topic:     topic,
 		ackServer: ackServer,
+		amILeader: collection.NewConcurrentValue(false),
 	}, nil
 }
 

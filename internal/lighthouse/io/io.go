@@ -75,7 +75,6 @@ func (t *IO) EnsurePathExists(path string) error {
 			}
 		}
 	}
-	log.Infof("PATH: %s", fullPath)
 	return nil
 }
 

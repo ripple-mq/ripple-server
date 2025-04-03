@@ -78,8 +78,8 @@ func (t *Transport) SendToAsync(addr string, id string, metadata any, data any) 
 	var metadataBuf, dataBuf bytes.Buffer
 	encoder.GOBEncoder{}.Encode(metadata, &metadataBuf)
 	encoder.GOBEncoder{}.Encode(data, &dataBuf)
-	metadataPayload := tcpcomm.Payload{ID: id, Data: metadataBuf.Bytes()}
-	dataPayload := tcpcomm.Payload{ID: id, Data: dataBuf.Bytes()}
+	metadataPayload := tcpcomm.Payload{FromServerID: t.ListenAddr.ID, ID: id, Data: metadataBuf.Bytes()}
+	dataPayload := tcpcomm.Payload{FromServerID: t.ListenAddr.ID, ID: id, Data: dataBuf.Bytes()}
 
 	return t.Send(addr, metadataPayload, dataPayload)
 }
@@ -92,16 +92,17 @@ func (t *Transport) Stop() error {
 
 // Consume retrieves the next message from the subscriber, decodes it using the provided decoder,
 // and writes the decoded data to the given writer. It returns the remote address of the sender or an error if decoding fails.
-func (t *Transport) Consume(decoder encoder.Decoder, writer any, timeout ...<-chan time.Time) (string, error) {
+func (t *Transport) Consume(decoder encoder.Decoder, writer any, timeout ...<-chan time.Time) (comm.ServerAddr, error) {
 	data, err := t.subscriber.Poll(timeout...)
+	var null comm.ServerAddr
 	if err != nil {
-		return "", err
+		return null, err
 	}
 	err = decoder.Decode(bytes.NewBuffer(data.Payload), writer)
 	if err != nil {
-		return "", err
+		return null, err
 	}
-	return data.RemoteAddr, nil
+	return comm.ServerAddr{Addr: data.RemoteAddr, ID: data.RemoteID}, nil
 }
 
 // write encodes the provided data using the transport's encoder,

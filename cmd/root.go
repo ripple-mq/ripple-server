@@ -31,7 +31,7 @@ func Execute() {
 
 	addr := RandLocalAddr()
 
-	lh.StartElectLoop(utils.Path{Cmp: []string{"topics", "topic-0", "bucket-0"}}, addr, func(path utils.Path) {})
+	lh.StartElectLoop(utils.Path{Cmp: []string{"topics", "topic-0", "bucket-0"}}, addr, make(chan<- struct{}))
 
 	// These functions demonstrate two separate checks to detect if the code is being
 	// run inside a docker container in debug mode, or production mode!

@@ -265,10 +265,10 @@ func (t *Server) Read(event syscall.Kevent_t) error {
 		}
 		addr, _ := t.clients.Get(int(event.Ident))
 		if !subscriber.GreetStatus.Get() {
-			subscriber.Greet(ic.Message{RemoteAddr: addr, Payload: payload.Data})
+			subscriber.Greet(ic.Message{RemoteAddr: addr, RemoteID: payload.FromServerID, Payload: payload.Data})
 			subscriber.GreetStatus.Set(true)
 		} else {
-			subscriber.Push(ic.Message{RemoteAddr: addr, Payload: payload.Data})
+			subscriber.Push(ic.Message{RemoteAddr: addr, RemoteID: payload.FromServerID, Payload: payload.Data})
 		}
 	} else {
 		t.removeClient(int(event.Ident))

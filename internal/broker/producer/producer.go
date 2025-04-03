@@ -15,7 +15,7 @@ type Producer struct {
 
 // NewProducer returns *Producer instance
 func NewProducer(topic tp.TopicBucket) *Producer {
-	return &Producer{topic}
+	return &Producer{topic: topic}
 }
 
 // ByteStreamingServer creates a Pub server that listens for messages and processes them using the provided message queue.

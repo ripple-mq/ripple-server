@@ -263,10 +263,10 @@ func (t *Server) Read(fd int) error {
 
 		addr, _ := t.clients.Get(fd)
 		if !subscriber.GreetStatus.Get() {
-			subscriber.Greet(ic.Message{RemoteAddr: addr, Payload: payload.Data})
+			subscriber.Greet(ic.Message{RemoteAddr: addr, RemoteID: payload.FromServerID, Payload: payload.Data})
 			subscriber.GreetStatus.Set(true)
 		} else {
-			subscriber.Push(ic.Message{RemoteAddr: addr, Payload: payload.Data})
+			subscriber.Push(ic.Message{RemoteAddr: addr, RemoteID: payload.FromServerID, Payload: payload.Data})
 		}
 	} else {
 		t.removeClient(fd)

@@ -27,37 +27,41 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 			}
 
 			t.q.Push(data)
+			go func() {
 
-			// get all followers for t.topicBucket
-			lh := lighthouse.GetLightHouse()
-			followers, err := lh.ReadFollowers(t.topic.GetPath())
-			if err != nil {
-				continue
-			}
-
-			// broadcasting messages to all followers
-			var followersAddr []comm.PCServerID
-			for _, s := range followers {
-				addr, err := comm.DecodeToPCServerID(s)
-				if err != nil {
-					continue
+				if !t.amILeader.Get() {
+					t.server.SendToAsync(clientAddr.Addr, clientAddr.ID, struct{}{}, queue.Ack{Id: data.GetID()})
+					return
 				}
-				followersAddr = append(followersAddr, addr)
-			}
 
-			task := Task{
-				Server:        t.ackServer,
-				AckClientAddr: clientAddr,
-				Receivers:     followersAddr,
-				Data:          data,
-				Wg:            &sync.WaitGroup{},
-				MsgID:         data.GetID(),
-			}
+				// get all followers for t.topicBucket
+				lh := lighthouse.GetLightHouse()
+				followers, err := lh.ReadFollowers(t.topic.GetPath())
+				if err != nil {
+					return
+				}
 
-			processor.GetProcessor().Add(task)
+				// broadcasting messages to all followers
+				var followersAddr []comm.PCServerID
+				for _, s := range followers {
+					addr, err := comm.DecodeToPCServerID(s)
+					if err != nil || (addr.BrokerAddr == t.server.ListenAddr.Addr && addr.ProducerID == t.ID) {
+						continue
+					}
+					followersAddr = append(followersAddr, addr)
+				}
 
-			// followers
-			t.server.SendToAsync(clientAddr, data, struct{}{}, queue.Ack{Id: data.GetID()})
+				task := Task{
+					Server:        t.ackServer,
+					AckClientAddr: clientAddr.Addr,
+					Receivers:     followersAddr,
+					Data:          data,
+					Wg:            &sync.WaitGroup{},
+					MsgID:         data.GetID(),
+				}
+
+				processor.GetProcessor().Add(task)
+			}()
 		}
 	}()
 }
@@ -72,4 +76,8 @@ func onAcceptingProdcuer(msg acomm.Message) {
 		return
 	}
 	log.Infof("Accepting producer: %s  message: %s", msg.RemoteAddr, MSG)
+}
+
+func (t *ProducerServer[T]) InformLeaderStatus() {
+	t.amILeader.Set(true)
 }

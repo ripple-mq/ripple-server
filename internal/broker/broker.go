@@ -3,7 +3,6 @@ package broker
 import (
 	"bytes"
 
-	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/consumer/loadbalancer"
 	"github.com/ripple-mq/ripple-server/internal/broker/server"
@@ -19,12 +18,13 @@ type InternalRPCServerAddr struct {
 }
 
 type Broker struct {
-	topic tp.TopicBucket
+	topic         tp.TopicBucket
+	WatchLeaderCh chan struct{}
 }
 
 // NewBroker returns `*Broker` with specified topic
 func NewBroker(topic tp.TopicBucket) *Broker {
-	return &Broker{topic}
+	return &Broker{topic: topic, WatchLeaderCh: make(chan struct{})}
 }
 
 // Run spins up Pub/Sub servers & starts listening to new conn
@@ -51,7 +51,8 @@ func (t *Broker) registerAndStartWatching(bs *server.Server, addr comm.PCServerI
 	if err != nil {
 		return err
 	}
-	fatalCh := lh.StartElectLoop(followerPath, addr, onBecommingLeader)
+	fatalCh := lh.StartElectLoop(followerPath, addr, t.WatchLeaderCh)
+	go t.watchLeader(bs)
 	go t.RunCleanupLoop(bs, fatalCh)
 	return nil
 }
@@ -67,15 +68,15 @@ func (t *Broker) RunCleanupLoop(server *server.Server, ch <-chan struct{}) {
 	}
 }
 
-// onBecommingLeader will be executed when current broker becomes leader
+// watchLeader will be executed when current broker becomes leader
 //
 // TODO: Spin up cron job to distribute messages to follower in batches
-func onBecommingLeader(path lu.Path) {
-	log.Infof("Heyyyyy, I became leader: %v", path)
+func (t *Broker) watchLeader(bs *server.Server) {
+	for {
+		<-t.WatchLeaderCh
+		bs.InformLeaderStatus()
+	}
 }
-
-//  /servers
-//		/s-0000000001010101202nsa02 internal  gRPC address
 
 func (t *Broker) CreateBucket() ([]InternalRPCServerAddr, error) {
 	servers, err := t.getAllServers()
