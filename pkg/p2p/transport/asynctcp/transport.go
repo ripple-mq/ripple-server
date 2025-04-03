@@ -15,8 +15,7 @@ import (
 
 type Transport struct {
 	EventLoop       *eventloop.Server
-	ListenAddr      string
-	ID              string
+	ListenAddr      comm.ServerAddr
 	Encoder         encoder.Encoder
 	subscriber      *comm.Subscriber
 	Ack             bool
@@ -46,8 +45,7 @@ func NewTransport(id string, opts ...TransportOpts) (*Transport, error) {
 	el.Subscribe(id, subscriber)
 	return &Transport{
 		EventLoop:       el,
-		ListenAddr:      listenAddr,
-		ID:              id,
+		ListenAddr:      comm.ServerAddr{Addr: listenAddr, ID: id},
 		subscriber:      subscriber,
 		Encoder:         encoder.GOBEncoder{},
 		Ack:             defaultOpts.Ack,

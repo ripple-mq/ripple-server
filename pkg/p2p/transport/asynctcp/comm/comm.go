@@ -7,6 +7,11 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 
+type ServerAddr struct {
+	Addr string
+	ID   string
+}
+
 type Message struct {
 	RemoteAddr string
 	Payload    []byte

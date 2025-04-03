@@ -2,12 +2,13 @@ package producer
 
 import (
 	"bytes"
+	"sync"
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
-	"github.com/ripple-mq/ripple-server/internal/gossip"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
+	"github.com/ripple-mq/ripple-server/internal/processor"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	acomm "github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
 )
@@ -20,7 +21,7 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 	go func() {
 		for {
 			var data T
-			prodAddr, err := t.server.Consume(encoder.GOBDecoder{}, &data)
+			clientAddr, err := t.server.Consume(encoder.GOBDecoder{}, &data)
 			if err != nil {
 				log.Warnf("error reading data: %v", err)
 			}
@@ -35,18 +36,28 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 			}
 
 			// broadcasting messages to all followers
+			var followersAddr []comm.PCServerID
 			for _, s := range followers {
 				addr, err := comm.DecodeToPCServerID(s)
 				if err != nil {
 					continue
 				}
-				gossip.Task{Server: t.ackServer, AckClientAddr: prodAddr, ReceiverAddr: addr.BrokerAddr, ReceiverID: addr.ProducerID, Data: data}.Exec()
+				followersAddr = append(followersAddr, addr)
 			}
 
-			// followers
-			if t.server.Ack {
-				t.server.Send(prodAddr, struct{}{}, queue.Ack{Id: data.GetID()})
+			task := Task{
+				Server:        t.ackServer,
+				AckClientAddr: clientAddr,
+				Receivers:     followersAddr,
+				Data:          data,
+				Wg:            &sync.WaitGroup{},
+				MsgID:         data.GetID(),
 			}
+
+			processor.GetProcessor().Add(task)
+
+			// followers
+			t.server.SendToAsync(clientAddr, data, struct{}{}, queue.Ack{Id: data.GetID()})
 		}
 	}()
 }

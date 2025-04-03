@@ -23,7 +23,7 @@ type ProducerServer[T queue.PayloadIF] struct {
 // It initializes a server to listen on the specified address and uses the given
 // message queue for processing the data.
 func NewProducerServer[T queue.PayloadIF](id string, q *queue.Queue[T], topic topic.TopicBucket) (*ProducerServer[T], error) {
-	server, err := asynctcp.NewTransport(id, asynctcp.TransportOpts{OnAcceptingConn: onAcceptingProdcuer, Ack: true})
+	server, _ := asynctcp.NewTransport(id, asynctcp.TransportOpts{OnAcceptingConn: onAcceptingProdcuer, Ack: true})
 	ackServer, err := asynctcp.NewTransport(uuid.NewString())
 	if err != nil {
 		return nil, err

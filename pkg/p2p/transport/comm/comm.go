@@ -1,6 +1,7 @@
 package comm
 
 type Payload struct {
-	ID   string
-	Data []byte
+	FromServerID string
+	ID           string
+	Data         []byte
 }
