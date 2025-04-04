@@ -11,6 +11,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/eventloop"
 	tcpcomm "github.com/ripple-mq/ripple-server/pkg/p2p/transport/comm"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
+	"github.com/ripple-mq/ripple-server/pkg/utils/env"
 )
 
 type Transport struct {
@@ -36,7 +37,8 @@ func NewTransport(id string, opts ...TransportOpts) (*Transport, error) {
 		defaultOpts = opts[0]
 	}
 
-	listenAddr := config.Conf.AsyncTCP.Address
+	addr := fmt.Sprintf("%s:%d", env.Get("ZK_IPv4", ""), config.Conf.AsyncTCP.Port)
+	listenAddr := addr
 	el, err := eventloop.GetServer(listenAddr)
 	if err != nil {
 		return nil, err

@@ -19,4 +19,4 @@ epoll_event_buffer_size=100
 blocking_mode=true
 
 [AsyncTCP]
-address=":8900"
+port=8900

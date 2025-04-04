@@ -2,6 +2,7 @@ package broker
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/consumer/loadbalancer"
@@ -11,6 +12,7 @@ import (
 	tp "github.com/ripple-mq/ripple-server/internal/topic"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
+	"github.com/ripple-mq/ripple-server/pkg/utils/env"
 )
 
 type InternalRPCServerAddr struct {
@@ -33,7 +35,8 @@ func (t *Broker) Run(pId, cId string) error {
 	if err := bs.Listen(); err != nil {
 		return err
 	}
-	if err := t.registerAndStartWatching(bs, comm.PCServerID{BrokerAddr: config.Conf.AsyncTCP.Address, ProducerID: pId, ConsumerID: cId}); err != nil {
+	addr := fmt.Sprintf("%s:%d", env.Get("ZK_IPv4", ""), config.Conf.AsyncTCP.Port)
+	if err := t.registerAndStartWatching(bs, comm.PCServerID{BrokerAddr: addr, ProducerID: pId, ConsumerID: cId}); err != nil {
 		return err
 	}
 	return nil

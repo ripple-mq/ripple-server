@@ -32,7 +32,7 @@ type Config struct {
 		Blocking_mode            bool
 	}
 	AsyncTCP struct {
-		Address string
+		Port int
 	}
 }
 
