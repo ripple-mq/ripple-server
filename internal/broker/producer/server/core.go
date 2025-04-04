@@ -27,41 +27,7 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 			}
 
 			t.q.Push(data)
-			go func() {
-
-				if !t.amILeader.Get() {
-					t.server.SendToAsync(clientAddr.Addr, clientAddr.ID, struct{}{}, queue.Ack{Id: data.GetID()})
-					return
-				}
-
-				// get all followers for t.topicBucket
-				lh := lighthouse.GetLightHouse()
-				followers, err := lh.ReadFollowers(t.topic.GetPath())
-				if err != nil {
-					return
-				}
-
-				// broadcasting messages to all followers
-				var followersAddr []comm.PCServerID
-				for _, s := range followers {
-					addr, err := comm.DecodeToPCServerID(s)
-					if err != nil || (addr.BrokerAddr == t.server.ListenAddr.Addr && addr.ProducerID == t.ID) {
-						continue
-					}
-					followersAddr = append(followersAddr, addr)
-				}
-
-				task := Task{
-					Server:        t.ackServer,
-					AckClientAddr: clientAddr.Addr,
-					Receivers:     followersAddr,
-					Data:          data,
-					Wg:            &sync.WaitGroup{},
-					MsgID:         data.GetID(),
-				}
-
-				processor.GetProcessor().Add(task)
-			}()
+			go t.GossipPush(clientAddr, data)
 		}
 	}()
 }
@@ -80,4 +46,39 @@ func onAcceptingProdcuer(msg acomm.Message) {
 
 func (t *ProducerServer[T]) InformLeaderStatus() {
 	t.amILeader.Set(true)
+}
+
+func (t *ProducerServer[T]) GossipPush(clientAddr acomm.ServerAddr, data queue.PayloadIF) {
+	if !t.amILeader.Get() {
+		t.server.SendToAsync(clientAddr.Addr, clientAddr.ID, struct{}{}, queue.Ack{Id: data.GetID()})
+		return
+	}
+
+	// get all followers for t.topicBucket
+	lh := lighthouse.GetLightHouse()
+	followers, err := lh.ReadFollowers(t.topic.GetPath())
+	if err != nil {
+		return
+	}
+
+	// broadcasting messages to all followers
+	var followersAddr []comm.PCServerID
+	for _, s := range followers {
+		addr, err := comm.DecodeToPCServerID(s)
+		if err != nil || (addr.BrokerAddr == t.server.ListenAddr.Addr && addr.ProducerID == t.ID) {
+			continue
+		}
+		followersAddr = append(followersAddr, addr)
+	}
+
+	task := Task{
+		Server:        t.ackServer,
+		AckClientAddr: clientAddr.Addr,
+		Receivers:     followersAddr,
+		Data:          data,
+		Wg:            &sync.WaitGroup{},
+		MsgID:         data.GetID(),
+	}
+
+	processor.GetProcessor().Add(task)
 }
