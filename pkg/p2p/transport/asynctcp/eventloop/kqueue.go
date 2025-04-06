@@ -41,45 +41,57 @@ type Server struct {
 }
 
 var serverInstance *Server
-var instanceLock = sync.Mutex{}
+var instanceCreationLock = sync.Mutex{}
+var instanceAccessLock = sync.Mutex{}
 
 // GetServer returns a singleton instance of the Server for the given address.
 // It initializes the server only once and reuses the existing instance on subsequent calls.
 //
 // Note: Reinstantiation is only possible after stutting down existing one
 func GetServer(addr string) (*Server, error) {
-	if !instanceLock.TryLock() {
+	instanceAccessLock.Lock()
+	defer instanceAccessLock.Unlock()
+
+	if !instanceCreationLock.TryLock() {
 		return serverInstance, nil
 	}
+
 	sv, err := newServer(addr)
 	serverInstance = sv
 	if err != nil {
+		instanceCreationLock.Unlock()
 		return nil, err
 	}
+
 	return serverInstance, nil
 }
 
 // newServer initializes a TCP server, sets up a kqueue for event notification,
 // and registers the listener for read events. It returns the server instance or an error if any step fails.
 func newServer(addr string) (*Server, error) {
+	fmt.Println("Creating Eventloop")
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
+		log.Errorf("error starting server: %v", err)
 		return nil, fmt.Errorf("error starting server: %v", err)
 	}
 
 	tcpListener, ok := listener.(*net.TCPListener)
 	if !ok {
+		log.Errorf("failed to assert listener to *net.TCPListener")
 		return nil, fmt.Errorf("failed to assert listener to *net.TCPListener")
 	}
 
 	listenerFile, err := tcpListener.File()
 	if err != nil {
+		log.Errorf("error getting listener file descriptor: %v", err)
 		return nil, fmt.Errorf("error getting listener file descriptor: %v", err)
 	}
 
 	fd := int(listenerFile.Fd())
 	kq, err := syscall.Kqueue()
 	if err != nil {
+		log.Errorf("error creating kqueue: %v", err)
 		return nil, fmt.Errorf("error creating kqueue: %v", err)
 	}
 
@@ -90,6 +102,7 @@ func newServer(addr string) (*Server, error) {
 	}
 
 	if _, err := syscall.Kevent(kq, []syscall.Kevent_t{kev}, nil, nil); err != nil {
+		log.Errorf("error registering listener with kqueue: %v", err)
 		return nil, fmt.Errorf("error registering listener with kqueue: %v", err)
 	}
 
@@ -109,6 +122,7 @@ func newServer(addr string) (*Server, error) {
 // Subscribe adds a subscriber to the server's listener map with the given ID.
 // It allows the server to push messages to respective subscriber channel.
 func (t *Server) Subscribe(id string, subscriber *ic.Subscriber) {
+
 	t.listeners.Set(id, subscriber)
 }
 
@@ -135,7 +149,7 @@ func (t *Server) Run() {
 			fmt.Println("HI")
 			return
 		default:
-			n, err := syscall.Kevent(t.kq, nil, events, &syscall.Timespec{Sec: 1})
+			n, err := syscall.Kevent(t.kq, nil, events, nil)
 			if err != nil {
 				if errno, ok := err.(syscall.Errno); ok && errno == syscall.EBADF {
 					log.Errorf("kqueue closed, shutting down gracefully.")
@@ -196,7 +210,7 @@ func (t *Server) Accept() error {
 // Send sends data to a connected client identified by its address.
 // If the connection does not exist, it establishes a new TCP connection, registers it with kqueue for read events,
 // and sends the data. Errors during connection, registration, or data transmission are logged and returned.
-func (t *Server) Send(address string, data []byte) error {
+func (t *Server) Send(address string, metadata []byte, data []byte) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -204,7 +218,9 @@ func (t *Server) Send(address string, data []byte) error {
 	keys, values := t.clients.Entries()
 	for i := range len(keys) {
 		if values[i] == address {
+			// time.Sleep(100 * time.Millisecond)
 			_, err := syscall.Write(keys[i], data)
+			fmt.Println("write rro", err)
 			return err
 		}
 	}
@@ -215,11 +231,13 @@ func (t *Server) Send(address string, data []byte) error {
 
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
+		fmt.Println("Write error ", err)
 		return fmt.Errorf("failed to connect to %s: %v", address, err)
 	}
 
 	connFile, err := conn.(*net.TCPConn).File()
 	if err != nil {
+		fmt.Println("Write error ", err)
 		return fmt.Errorf("failed to get file descriptor: %v", err)
 	}
 
@@ -231,12 +249,20 @@ func (t *Server) Send(address string, data []byte) error {
 	}
 
 	if _, err := syscall.Kevent(t.kq, []syscall.Kevent_t{kev}, nil, nil); err != nil {
+		fmt.Println("Write error ", err)
 		conn.Close()
 		return fmt.Errorf("failed to register new connection: %v", err)
 	}
 
 	t.clients.Set(fd, address)
+	_, err = syscall.Write(fd, metadata)
+	// time.Sleep(100 * time.Millisecond)
+	fmt.Println("Write error ", err)
+
 	_, err = syscall.Write(fd, data)
+	// time.Sleep(100 * time.Millisecond)
+
+	fmt.Println("Write error ", err)
 	return err
 }
 
@@ -303,7 +329,7 @@ func (t *Server) Clean() error {
 	defer t.mu.Unlock()
 
 	// clearing serverInstance, so that one can reinstantiate eventloop smoothly
-	instanceLock.Unlock()
+	instanceCreationLock.Unlock()
 
 	if err := t.tcpListener.Close(); err != nil {
 		log.Errorf("failed to close listener at %s, error= %v", t.tcpListener.Addr(), err)
@@ -338,5 +364,5 @@ func (t *Server) Clean() error {
 
 // Stop stops server, blocking in nature
 func (t *Server) Stop() {
-	t.shutdownSignalCh <- struct{}{}
+	// t.shutdownSignalCh <- struct{}{}
 }

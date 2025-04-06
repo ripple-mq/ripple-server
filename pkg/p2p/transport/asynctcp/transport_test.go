@@ -144,6 +144,8 @@ func TestTransport_Recieve(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Transport.Listen() error = %v, wantErr %v", err, tt.wantErr)
 			}
+
+			fmt.Println("HI")
 			go func() {
 				for {
 					var msg string
@@ -155,7 +157,9 @@ func TestTransport_Recieve(t *testing.T) {
 				}
 			}()
 
+			fmt.Println("HI")
 			time.Sleep(1000 * time.Millisecond)
+			fmt.Println("HI")
 
 			if err := client.SendToAsync(server.ListenAddr.Addr, tt.serverId, "some metadat", tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Transport.Send() error = %v, wantErr %v", err, tt.wantErr)
@@ -166,6 +170,7 @@ func TestTransport_Recieve(t *testing.T) {
 			if err := client.SendToAsync(server.ListenAddr.Addr, tt.serverId, struct{}{}, tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Transport.Send() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			fmt.Println("HI")
 
 			time.Sleep(1000 * time.Millisecond)
 			server.Stop()

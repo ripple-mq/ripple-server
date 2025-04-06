@@ -7,8 +7,9 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/ripple-mq/ripple-server/internal/lighthouse"
-	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
@@ -26,20 +27,19 @@ func Execute() {
 	cfg := config.Conf
 
 	log.Info(cfg)
+	serverId := "10101"
+	server, _ := asynctcp.NewTransport(serverId, asynctcp.TransportOpts{OnAcceptingConn: func(msg comm.Message) { fmt.Println(msg) }})
+	server.Listen()
 
-	lh := lighthouse.GetLightHouse()
+	go func() {
+		for {
+			var msg string
+			addr, _ := server.Consume(encoder.GOBDecoder{}, &msg)
+			fmt.Printf("received: %s from %s \n", msg, addr)
 
-	addr := RandLocalAddr()
-
-	lh.StartElectLoop(utils.Path{Cmp: []string{"topics", "topic-0", "bucket-0"}}, addr, make(chan<- struct{}))
-
-	// These functions demonstrate two separate checks to detect if the code is being
-	// run inside a docker container in debug mode, or production mode!
-	//
-	// Note: Valid only for docker containers generated using the Makefile command
-	FirstCheck()
-	SecondCheck()
-
+			server.SendToAsync(addr.Addr, addr.ID, "", "server received message")
+		}
+	}()
 	select {}
 
 }

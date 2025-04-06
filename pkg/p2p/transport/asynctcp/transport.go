@@ -37,7 +37,7 @@ func NewTransport(id string, opts ...TransportOpts) (*Transport, error) {
 		defaultOpts = opts[0]
 	}
 
-	addr := fmt.Sprintf("%s:%d", env.Get("ZK_IPv4", ""), config.Conf.AsyncTCP.Port)
+	addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", ""), config.Conf.AsyncTCP.Port)
 	listenAddr := addr
 	el, err := eventloop.GetServer(listenAddr)
 	if err != nil {
@@ -65,12 +65,7 @@ func (t *Transport) Listen() error {
 // Send sends metadata (if provided) and data to the specified address.
 // It returns an error if sending either the metadata or data fails.
 func (t *Transport) Send(addr string, metadata any, data any) error {
-	if metadata != struct{}{} {
-		if err := t.write(addr, metadata); err != nil {
-			return fmt.Errorf("error sending metadata: %v", err)
-		}
-	}
-	if err := t.write(addr, data); err != nil {
+	if err := t.write(addr, metadata, data); err != nil {
 		return fmt.Errorf("error sending data: %v", err)
 	}
 	return nil
@@ -110,23 +105,35 @@ func (t *Transport) Consume(decoder encoder.Decoder, writer any, timeout ...<-ch
 // write encodes the provided data using the transport's encoder,
 // sends the length of the encoded data followed by the data itself to the specified address.
 // Returns an error if either the length or data transmission fails.
-func (t *Transport) write(addr string, data any) error {
-	var msg bytes.Buffer
-	if err := t.Encoder.Encode(data, &msg); err != nil {
+func (t *Transport) write(addr string, metadata any, data any) error {
+
+	// Data
+	var dataBuff bytes.Buffer
+	if err := t.Encoder.Encode(data, &dataBuff); err != nil {
 		return err
 	}
 
-	length := uint32(len(msg.Bytes()))
-	lengthBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(lengthBytes, length)
+	dataLength := uint32(len(dataBuff.Bytes()))
+	dataLengthBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(dataLengthBytes, dataLength)
+	fullData := append(dataLengthBytes, dataBuff.Bytes()...)
 
-	err := t.EventLoop.Send(addr, lengthBytes)
+	// Metadata
+	var metadatBuff bytes.Buffer
+
+	if err := t.Encoder.Encode(metadata, &metadatBuff); err != nil {
+		return err
+	}
+	metadataLength := uint32(len(metadatBuff.Bytes()))
+	metadataLengthBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(metadataLengthBytes, metadataLength)
+	fullMetadata := append(metadataLengthBytes, metadatBuff.Bytes()...)
+
+	// sending metadata & data together
+	err := t.EventLoop.Send(addr, fullMetadata, fullData)
 	if err != nil {
 		return fmt.Errorf("failed to send length: %v", err)
 	}
-	err = t.EventLoop.Send(addr, msg.Bytes())
-	if err != nil {
-		return fmt.Errorf("failed to send data: %v", err)
-	}
+
 	return nil
 }

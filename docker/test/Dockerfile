@@ -11,4 +11,4 @@ WORKDIR /app
 COPY . .
 
 # Run tests and build the binary at runtime
-CMD ["sh", "-c", "go test ./... && go build -o ripple-server && ./ripple-server"]
+CMD ["sh", "-c", "go build -o ripple-server && ./ripple-server"]

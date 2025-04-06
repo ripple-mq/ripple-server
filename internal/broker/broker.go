@@ -35,7 +35,7 @@ func (t *Broker) Run(pId, cId string) error {
 	if err := bs.Listen(); err != nil {
 		return err
 	}
-	addr := fmt.Sprintf("%s:%d", env.Get("ZK_IPv4", ""), config.Conf.AsyncTCP.Port)
+	addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", ""), config.Conf.AsyncTCP.Port)
 	if err := t.registerAndStartWatching(bs, comm.PCServerID{BrokerAddr: addr, ProducerID: pId, ConsumerID: cId}); err != nil {
 		return err
 	}

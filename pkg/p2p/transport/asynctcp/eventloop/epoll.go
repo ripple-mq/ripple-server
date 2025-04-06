@@ -42,21 +42,28 @@ type Server struct {
 }
 
 var serverInstance *Server
-var instanceLock = sync.Mutex{}
+var instanceCreationLock = sync.Mutex{}
+var instanceAccessLock = sync.Mutex{}
 
 // GetServer returns a singleton instance of the Server for the given address.
 // It initializes the server only once and reuses the existing instance on subsequent calls.
 //
 // Note: Reinstantiation is only possible after stutting down existing one
 func GetServer(addr string) (*Server, error) {
-	if !instanceLock.TryLock() {
+	instanceAccessLock.Lock()
+	defer instanceAccessLock.Unlock()
+
+	if !instanceCreationLock.TryLock() {
 		return serverInstance, nil
 	}
+
 	sv, err := newServer(addr)
 	serverInstance = sv
 	if err != nil {
+		instanceCreationLock.Unlock()
 		return nil, err
 	}
+
 	return serverInstance, nil
 }
 
@@ -88,6 +95,8 @@ func newServer(addr string) (*Server, error) {
 		Events: uint32(syscall.EPOLLIN) | EPOLLET,
 		Fd:     int32(fd),
 	}
+
+	syscall.SetNonblock(fd, true)
 
 	if err := syscall.EpollCtl(epollFd, EPOLL_CTL_ADD, fd, &event); err != nil {
 		return nil, fmt.Errorf("error adding listener to epoll: %v", err)
@@ -134,7 +143,7 @@ func (t *Server) Run() {
 		case <-t.shutdownSignalCh:
 			return
 		default:
-			n, err := syscall.EpollWait(t.epollFd, events, 1)
+			n, err := syscall.EpollWait(t.epollFd, events, -1)
 			if err != nil {
 				fmt.Println("Error waiting for events:", err)
 				break
@@ -172,10 +181,11 @@ func (t *Server) Accept() error {
 	t.clients.Set(connFd, addr)
 
 	event := syscall.EpollEvent{
-		Events: uint32(syscall.EPOLLIN) | EPOLLET,
+		Events: uint32(syscall.EPOLLIN),
 		Fd:     int32(connFd),
 	}
 
+	syscall.SetNonblock(connFd, true)
 	if err := syscall.EpollCtl(t.epollFd, EPOLL_CTL_ADD, connFd, &event); err != nil {
 		fmt.Println("Error adding connection to epoll:", err)
 		syscall.Close(connFd)
@@ -188,7 +198,7 @@ func (t *Server) Accept() error {
 // Send sends data to a connected client identified by its address.
 // If the connection does not exist, it establishes a new TCP connection, registers it with kqueue for read events,
 // and sends the data. Errors during connection, registration, or data transmission are logged and returned.
-func (t *Server) Send(address string, data []byte) error {
+func (t *Server) Send(address string, metadata []byte, data []byte) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -219,10 +229,11 @@ func (t *Server) Send(address string, data []byte) error {
 
 	// Register the new connection with epoll for both read and write events
 	event := syscall.EpollEvent{
-		Events: uint32(syscall.EPOLLIN) | syscall.EPOLLOUT | EPOLLET,
+		Events: uint32(syscall.EPOLLIN) | syscall.EPOLLOUT,
 		Fd:     int32(fd),
 	}
 
+	syscall.SetNonblock(fd, true)
 	if err := syscall.EpollCtl(t.epollFd, syscall.EPOLL_CTL_ADD, fd, &event); err != nil {
 		conn.Close()
 		return fmt.Errorf("failed to register new connection: %v", err)
@@ -232,6 +243,7 @@ func (t *Server) Send(address string, data []byte) error {
 	t.clients.Set(fd, address)
 
 	// Send the data
+	_, _ = syscall.Write(fd, metadata)
 	_, err = syscall.Write(fd, data)
 	return err
 }
@@ -263,6 +275,7 @@ func (t *Server) Read(fd int) error {
 
 		addr, _ := t.clients.Get(fd)
 		if !subscriber.GreetStatus.Get() {
+			fmt.Println("grreting metadata")
 			subscriber.Greet(ic.Message{RemoteAddr: addr, RemoteID: payload.FromServerID, Payload: payload.Data})
 			subscriber.GreetStatus.Set(true)
 		} else {
@@ -297,8 +310,9 @@ func (t *Server) Clean() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
+	fmt.Println("CLEANING STARTED >>>>>>>>>>>>>> ")
 	// release lock to allow creating new Server instance
-	instanceLock.Unlock()
+	instanceCreationLock.Unlock()
 
 	if err := t.tcpListener.Close(); err != nil {
 		log.Errorf("failed to close listener at %s, error= %v", t.tcpListener.Addr(), err)
@@ -333,5 +347,5 @@ func (t *Server) Clean() error {
 
 // Stop stops server, blocking in nature
 func (t *Server) Stop() {
-	t.shutdownSignalCh <- struct{}{}
+	// t.shutdownSignalCh <- struct{}{}
 }

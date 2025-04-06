@@ -36,7 +36,7 @@ func newIO() *IO {
 // It returns a pointer to a Zookeeper connection. If the connection fails, the application
 // will log a fatal error and terminate.
 func connect() *zk.Conn {
-	url := fmt.Sprintf("%s:%d", env.Get("ZK_IPv4", localAddr), config.Conf.Zookeeper.Port)
+	url := fmt.Sprintf("%s:%s", env.Get("ZK_IPv4", localAddr), env.Get("ZK_PORT", "2182"))
 	log.Infof("Attempting zookeeper connection: %s", url)
 	conn, _, err := zk.Connect([]string{url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms*int(time.Millisecond)))
 	if err != nil {

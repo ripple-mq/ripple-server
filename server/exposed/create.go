@@ -24,7 +24,7 @@ func (c Server) CreateBucket(ctx context.Context, req *pb.CreateBucketReq) (*pb.
 
 func createReq(servers []broker.InternalRPCServerAddr, topic topic.TopicBucket) {
 
-	for _, addr := range servers {
+	for _, addr := range servers[:1] {
 		go func(addr string) {
 			conn, err := grpc.NewClient(addr, grpc.WithInsecure())
 			if err != nil {
