@@ -10,6 +10,7 @@ import (
 	"net"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
@@ -96,8 +97,6 @@ func newServer(addr string) (*Server, error) {
 		Fd:     int32(fd),
 	}
 
-	syscall.SetNonblock(fd, true)
-
 	if err := syscall.EpollCtl(epollFd, EPOLL_CTL_ADD, fd, &event); err != nil {
 		return nil, fmt.Errorf("error adding listener to epoll: %v", err)
 	}
@@ -145,8 +144,7 @@ func (t *Server) Run() {
 		default:
 			n, err := syscall.EpollWait(t.epollFd, events, -1)
 			if err != nil {
-				fmt.Println("Error waiting for events:", err)
-				break
+				continue
 			}
 
 			for i := range n {
@@ -173,7 +171,6 @@ func (t *Server) Run() {
 func (t *Server) Accept() error {
 	connFd, sa, err := syscall.Accept(t.listenerFd)
 	if err != nil {
-		fmt.Println("Accept error:", err)
 		return fmt.Errorf("accept error: %v", err)
 	}
 
@@ -206,7 +203,7 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 	keys, values := t.clients.Entries()
 	for i := range len(keys) {
 		if values[i] == address {
-			_, err := syscall.Write(keys[i], data)
+			_, err := t.write(keys[i], data)
 			return err
 		}
 	}
@@ -243,9 +240,26 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 	t.clients.Set(fd, address)
 
 	// Send the data
-	_, _ = syscall.Write(fd, metadata)
-	_, err = syscall.Write(fd, data)
+	_, _ = t.write(fd, metadata)
+	_, err = t.write(fd, data)
 	return err
+}
+
+// Blocking write
+func (t *Server) write(fd int, data []byte) (int, error) {
+	written := 0
+	for written < len(data) {
+		n, err := syscall.Write(fd, data[written:])
+		if n > 0 {
+			written += n
+		} else if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		} else {
+			return 0, fmt.Errorf("failed to write data: %v", err)
+		}
+	}
+	return written, nil
 }
 
 // Read handles incoming data from a client connection identified by the kqueue event.
@@ -258,7 +272,7 @@ func (t *Server) Read(fd int) error {
 	length := binary.BigEndian.Uint32(lengthBytes)
 
 	buf := make([]byte, length)
-	n, err := syscall.Read(fd, buf)
+	n, err := t.read(fd, buf)
 	if err != nil {
 		t.removeClient(fd)
 		return fmt.Errorf("read error: %v", err)
@@ -287,12 +301,32 @@ func (t *Server) Read(fd int) error {
 	return nil
 }
 
+// read completely
+func (t *Server) read(fd int, buffer []byte) (int, error) {
+	totalRead := 0
+	for totalRead < len(buffer) {
+		n, err := syscall.Read(fd, buffer[totalRead:])
+		if err != nil {
+			return totalRead, err
+		}
+		if n == 0 {
+			break
+		}
+		totalRead += n
+	}
+	return totalRead, nil
+}
+
 // removeClient closes the client connection and removes it from the active client list.
 func (t *Server) removeClient(fd int) {
 	if _, err := t.clients.Get(fd); err == nil {
-		syscall.Close(fd)
+
 		t.clients.Delete(fd)
-		fmt.Printf("Client %d disconnected\n", fd)
+		if err := syscall.EpollCtl(t.epollFd, syscall.EPOLL_CTL_DEL, fd, nil); err != nil {
+			log.Warnf("Failed to remove FD %d from epoll: %v", fd, err)
+		}
+		er := syscall.Close(fd)
+		fmt.Printf("Client %d disconnected : %v\n", fd, er)
 	}
 }
 

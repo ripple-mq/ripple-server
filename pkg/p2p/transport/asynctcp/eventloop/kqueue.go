@@ -10,6 +10,7 @@ import (
 	"net"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
@@ -43,6 +44,8 @@ type Server struct {
 var serverInstance *Server
 var instanceCreationLock = sync.Mutex{}
 var instanceAccessLock = sync.Mutex{}
+var writeLock = sync.Mutex{}
+var readLock = sync.Mutex{}
 
 // GetServer returns a singleton instance of the Server for the given address.
 // It initializes the server only once and reuses the existing instance on subsequent calls.
@@ -151,12 +154,7 @@ func (t *Server) Run() {
 		default:
 			n, err := syscall.Kevent(t.kq, nil, events, nil)
 			if err != nil {
-				if errno, ok := err.(syscall.Errno); ok && errno == syscall.EBADF {
-					log.Errorf("kqueue closed, shutting down gracefully.")
-					return
-				}
-				log.Errorf("error waiting for events: %v", err)
-				break
+				continue
 			}
 
 			for i := range n {
@@ -218,9 +216,7 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 	keys, values := t.clients.Entries()
 	for i := range len(keys) {
 		if values[i] == address {
-			// time.Sleep(100 * time.Millisecond)
-			_, err := syscall.Write(keys[i], data)
-			fmt.Println("write rro", err)
+			_, err := t.write(keys[i], data)
 			return err
 		}
 	}
@@ -255,15 +251,27 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 	}
 
 	t.clients.Set(fd, address)
-	_, err = syscall.Write(fd, metadata)
-	// time.Sleep(100 * time.Millisecond)
-	fmt.Println("Write error ", err)
-
-	_, err = syscall.Write(fd, data)
-	// time.Sleep(100 * time.Millisecond)
-
-	fmt.Println("Write error ", err)
+	_, _ = t.write(fd, metadata)
+	_, err = t.write(fd, data)
 	return err
+}
+
+func (t *Server) write(fd int, data []byte) (int, error) {
+	writeLock.Lock()
+	defer writeLock.Unlock()
+	written := 0
+	for written < len(data) {
+		n, err := syscall.Write(fd, data[written:])
+		if n > 0 {
+			written += n
+		} else if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		} else {
+			return 0, fmt.Errorf("failed to write data: %v", err)
+		}
+	}
+	return written, nil
 }
 
 // Read handles incoming data from a client connection identified by the kqueue event.
@@ -271,12 +279,15 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 // If the subscriber hasn't been greeted yet, it sends a greeting; otherwise, it pushes the message.
 // Errors during reading or processing lead to client removal and error reporting.
 func (t *Server) Read(event syscall.Kevent_t) error {
+	readLock.Lock()
+	defer readLock.Unlock()
+
 	lengthBytes := make([]byte, 4)
 	_, _ = syscall.Read(int(event.Ident), lengthBytes)
 	length := binary.BigEndian.Uint32(lengthBytes)
 
 	buf := make([]byte, length)
-	n, err := syscall.Read(int(event.Ident), buf)
+	n, err := t.read(int(event.Ident), buf)
 	if err != nil {
 		t.removeClient(int(event.Ident))
 		return fmt.Errorf("read error: %v", err)
@@ -303,12 +314,46 @@ func (t *Server) Read(event syscall.Kevent_t) error {
 	return nil
 }
 
+// Read completely
+func (t *Server) read(fd int, buffer []byte) (int, error) {
+	totalRead := 0
+	for totalRead < len(buffer) {
+		n, err := syscall.Read(fd, buffer[totalRead:])
+		if err != nil {
+			return totalRead, err
+		}
+		if n == 0 {
+			break
+		}
+		totalRead += n
+	}
+	return totalRead, nil
+}
+
 // removeClient closes the client connection and removes it from the active client list.
 func (s *Server) removeClient(fd int) {
 	if _, err := s.clients.Get(fd); err == nil {
-		syscall.Close(fd)
+		// Prepare the kevent to remove the fd
+		change := syscall.Kevent_t{
+			Ident:  uint64(fd),
+			Filter: syscall.EVFILT_READ,
+			Flags:  syscall.EV_DELETE,
+		}
+
+		// Remove the fd from kqueue
+		if _, err := syscall.Kevent(s.kq, []syscall.Kevent_t{change}, nil, nil); err != nil {
+			log.Warnf("Failed to remove FD %d from kqueue: %v", fd, err)
+		}
+
+		// Close the file descriptor
+		if err := syscall.Close(fd); err != nil {
+			log.Warnf("Failed to close FD %d: %v", fd, err)
+		} else {
+			fmt.Printf("Client %d disconnected\n", fd)
+		}
+
+		// Finally, remove from the client map
 		s.clients.Delete(fd)
-		fmt.Printf("Client %d disconnected\n", fd)
 	}
 }
 
