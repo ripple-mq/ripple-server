@@ -7,10 +7,9 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
+	"github.com/ripple-mq/ripple-server/pkg/utils/env"
+	"github.com/ripple-mq/ripple-server/server"
 )
 
 const (
@@ -27,19 +26,16 @@ func Execute() {
 	cfg := config.Conf
 
 	log.Info(cfg)
-	serverId := "10101"
-	server, _ := asynctcp.NewTransport(serverId, asynctcp.TransportOpts{OnAcceptingConn: func(msg comm.Message) { fmt.Println(msg) }})
-	server.Listen()
 
-	go func() {
-		for {
-			var msg string
-			addr, _ := server.Consume(encoder.GOBDecoder{}, &msg)
-			fmt.Printf("received: %s from %s \n", msg, addr)
+	// addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", ""), config.Conf.AsyncTCP.Port)
+	// el, _ := eventloop.GetServer(addr)
+	// go el.Run()
 
-			server.SendToAsync(addr.Addr, addr.ID, "", "server received message")
-		}
-	}()
+	internal := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", "127.0.0.1"), 8890)
+	port := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", "127.0.0.1"), 8891)
+	s := server.NewServer(internal, port)
+	s.Listen()
+
 	select {}
 
 }

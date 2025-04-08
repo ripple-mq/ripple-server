@@ -91,6 +91,7 @@ func (t *Transport) Stop() error {
 // and writes the decoded data to the given writer. It returns the remote address of the sender or an error if decoding fails.
 func (t *Transport) Consume(decoder encoder.Decoder, writer any, timeout ...<-chan time.Time) (comm.ServerAddr, error) {
 	data, err := t.subscriber.Poll(timeout...)
+
 	var null comm.ServerAddr
 	if err != nil {
 		return null, err

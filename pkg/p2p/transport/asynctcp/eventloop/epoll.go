@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -71,46 +72,71 @@ func GetServer(addr string) (*Server, error) {
 // newServer initializes a TCP server, sets up a kqueue for event notification,
 // and registers the listener for read events. It returns the server instance or an error if any step fails.
 func newServer(addr string) (*Server, error) {
-	listener, err := net.Listen("tcp", addr)
+	serverFD, err := syscall.Socket(syscall.AF_INET, syscall.O_NONBLOCK|syscall.SOCK_STREAM, 0)
 	if err != nil {
-		return nil, fmt.Errorf("error starting server: %v", err)
+		fmt.Println("ERR, ", err)
+		return nil, err
 	}
 
-	tcpListener, ok := listener.(*net.TCPListener)
-	if !ok {
-		return nil, fmt.Errorf("failed to assert listener to *net.TCPListener")
+	// Set the Socket operate in a non-blocking mode
+	if err = syscall.SetNonblock(serverFD, true); err != nil {
+		fmt.Println("ERR, ", err)
+		return nil, err
 	}
 
-	listenerFile, err := tcpListener.File()
+	// Bind the IP and the port
+	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		return nil, fmt.Errorf("error getting listener file descriptor: %v", err)
+		fmt.Println("ERR, ", err)
+		return nil, err
+	}
+	p, _ := strconv.Atoi(portStr)
+	ip4 := net.ParseIP(host)
+	fmt.Println("Listening at, ", ip4, p)
+	if err = syscall.Bind(serverFD, &syscall.SockaddrInet4{
+		Port: p,
+		Addr: [4]byte{ip4[0], ip4[1], ip4[2], ip4[3]},
+	}); err != nil {
+		fmt.Println("ERR, ", err)
+		return nil, err
 	}
 
-	fd := int(listenerFile.Fd())
-	epollFd, err := syscall.EpollCreate1(0)
+	// Start listening
+	if err = syscall.Listen(serverFD, 1000); err != nil {
+		fmt.Println("ERR, ", err)
+		return nil, err
+	}
+
+	// AsyncIO starts here!!
+
+	// creating EPOLL instance
+	epollFD, err := syscall.EpollCreate1(0)
 	if err != nil {
-		return nil, fmt.Errorf("error creating epoll: %v", err)
+		log.Fatal(err)
 	}
 
-	event := syscall.EpollEvent{
-		Events: uint32(syscall.EPOLLIN) | EPOLLET,
-		Fd:     int32(fd),
+	// Specify the events we want to get hints about
+	// and set the socket on which
+	var socketServerEvent syscall.EpollEvent = syscall.EpollEvent{
+		Events: syscall.EPOLLIN,
+		Fd:     int32(serverFD),
 	}
 
-	if err := syscall.EpollCtl(epollFd, EPOLL_CTL_ADD, fd, &event); err != nil {
-		return nil, fmt.Errorf("error adding listener to epoll: %v", err)
+	// Listen to read events on the Server itself
+	if err = syscall.EpollCtl(epollFD, syscall.EPOLL_CTL_ADD, serverFD, &socketServerEvent); err != nil {
+		fmt.Println("ERR, ", err)
+		return nil, err
 	}
 
 	return &Server{
-		epollFd:          epollFd,
-		listenerFd:       fd,
+		epollFd:          epollFD,
+		listenerFd:       serverFD,
 		clients:          collection.NewConcurrentMap[int, string](),
 		Decoder:          encoder.GOBDecoder{},
 		listeners:        collection.NewConcurrentMap[string, *ic.Subscriber](),
 		mu:               sync.Mutex{},
 		isLoopRunning:    collection.NewConcurrentValue(false),
 		shutdownSignalCh: make(chan struct{}),
-		tcpListener:      listener,
 	}, nil
 }
 
@@ -142,7 +168,7 @@ func (t *Server) Run() {
 		case <-t.shutdownSignalCh:
 			return
 		default:
-			n, err := syscall.EpollWait(t.epollFd, events, -1)
+			n, err := syscall.EpollWait(t.epollFd, events[:], -1)
 			if err != nil {
 				continue
 			}
@@ -174,15 +200,15 @@ func (t *Server) Accept() error {
 		return fmt.Errorf("accept error: %v", err)
 	}
 
+	syscall.SetNonblock(t.listenerFd, true)
 	addr := utils.SockaddrToString(sa)
 	t.clients.Set(connFd, addr)
 
 	event := syscall.EpollEvent{
-		Events: uint32(syscall.EPOLLIN),
+		Events: syscall.EPOLLIN,
 		Fd:     int32(connFd),
 	}
 
-	syscall.SetNonblock(connFd, true)
 	if err := syscall.EpollCtl(t.epollFd, EPOLL_CTL_ADD, connFd, &event); err != nil {
 		fmt.Println("Error adding connection to epoll:", err)
 		syscall.Close(connFd)
@@ -307,6 +333,7 @@ func (t *Server) read(fd int, buffer []byte) (int, error) {
 	for totalRead < len(buffer) {
 		n, err := syscall.Read(fd, buffer[totalRead:])
 		if err != nil {
+			fmt.Println("ERR, ", err)
 			return totalRead, err
 		}
 		if n == 0 {
@@ -381,5 +408,5 @@ func (t *Server) Clean() error {
 
 // Stop stops server, blocking in nature
 func (t *Server) Stop() {
-	// t.shutdownSignalCh <- struct{}{}
+	syscall.Close(t.listenerFd)
 }

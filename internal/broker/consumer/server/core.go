@@ -46,7 +46,6 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 	lh := lighthouse.GetLightHouse()
 	data, _ := lh.Read(getConsumerPath(query.ID))
 	offset, _ := strconv.Atoi(string(data))
-	defer lh.Write(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 
 	for {
 		messages := t.q.SubArray(offset, offset+query.Count)
@@ -56,8 +55,10 @@ func (t *ConsumerServer[T]) handleConsumeReq(query AskQuery, clientAddr string) 
 		}
 		if err := t.server.Send(clientAddr, struct{}{}, messages); err != nil {
 			log.Errorf("failed to send: %v", err)
+			break
 		}
 		offset += len(messages)
+		go lh.Write(getConsumerPath(query.ID), strconv.Itoa(offset+query.Count))
 	}
 }
 

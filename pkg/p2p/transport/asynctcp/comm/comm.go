@@ -28,7 +28,7 @@ type Subscriber struct {
 func NewSubscriber(id string, OnAcceptingConn func(Message)) *Subscriber {
 	return &Subscriber{
 		ID:                id,
-		IncommingMsgQueue: make(chan Message, 10),
+		IncommingMsgQueue: make(chan Message, 1000),
 		OnAcceptingConn:   OnAcceptingConn,
 		GreetStatus:       collection.NewConcurrentValue(false),
 	}

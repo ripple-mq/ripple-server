@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/log"
-	"github.com/google/uuid"
+	"github.com/ripple-mq/ripple-server/internal/broker/ack"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/internal/topic"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
@@ -12,12 +12,12 @@ import (
 )
 
 type ProducerServer[T queue.PayloadIF] struct {
-	ID        string              // producer id
-	server    *asynctcp.Transport // Prodcuer server instance
-	q         *queue.Queue[T]     // thread safe message queue
-	topic     topic.TopicBucket
-	ackServer *asynctcp.Transport
-	amILeader *collection.ConcurrentValue[bool]
+	ID         string              // producer id
+	server     *asynctcp.Transport // Prodcuer server instance
+	q          *queue.Queue[T]     // thread safe message queue
+	topic      topic.TopicBucket
+	ackHandler *ack.AcknowledgeHandler
+	amILeader  *collection.ConcurrentValue[bool]
 }
 
 // NewProducerServer creates a new ProducerServer to accept data of type T.
@@ -25,19 +25,23 @@ type ProducerServer[T queue.PayloadIF] struct {
 // It initializes a server to listen on the specified address and uses the given
 // message queue for processing the data.
 func NewProducerServer[T queue.PayloadIF](id string, q *queue.Queue[T], topic topic.TopicBucket) (*ProducerServer[T], error) {
-	server, _ := asynctcp.NewTransport(id, asynctcp.TransportOpts{OnAcceptingConn: onAcceptingProdcuer, Ack: true})
-	ackServer, err := asynctcp.NewTransport(uuid.NewString())
+	server, err := asynctcp.NewTransport(id, asynctcp.TransportOpts{OnAcceptingConn: onAcceptingProdcuer, Ack: true})
 	if err != nil {
-		return nil, err
+		fmt.Println("error creating server, ", err)
 	}
+	ackServer, err := asynctcp.NewTransport(fmt.Sprintf("ack-%s", id), asynctcp.TransportOpts{OnAcceptingConn: onAcceptingProdcuer, Ack: true})
+	if err != nil {
+		fmt.Println("error creating ack server, ", err)
+	}
+	ackHandler := ack.NewAcknowledgeHandler(ackServer)
 
 	return &ProducerServer[T]{
-		ID:        server.ListenAddr.ID,
-		server:    server,
-		q:         q,
-		topic:     topic,
-		ackServer: ackServer,
-		amILeader: collection.NewConcurrentValue(false),
+		ID:         server.ListenAddr.ID,
+		server:     server,
+		q:          q,
+		topic:      topic,
+		ackHandler: ackHandler,
+		amILeader:  collection.NewConcurrentValue(false),
 	}, nil
 }
 
@@ -46,7 +50,7 @@ func (t *ProducerServer[T]) Listen() error {
 	if err := t.server.Listen(); err != nil {
 		return fmt.Errorf("failed to start queue server: %v", err)
 	}
-	if err := t.ackServer.Listen(); err != nil {
+	if err := t.ackHandler.Run(); err != nil {
 		return fmt.Errorf("failed to start ack server: %v", err)
 	}
 	t.startPopulatingQueue()

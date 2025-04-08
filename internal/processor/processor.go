@@ -20,6 +20,7 @@ func GetProcessor() *Processor {
 		return processorInstance
 	}
 	processorInstance = newProcessor()
+	processorInstance.Run()
 	return processorInstance
 }
 

@@ -39,6 +39,6 @@ func (t *Consumer) GetServerConnection(topicName string, bucketName string) ([]b
 		return nil, err
 	}
 
-	index := loadbalancer.NewReadReqLoadBalancer().GetIndex(len(data))
+	index := loadbalancer.NewReadReqLoadBalancer().GetIndex(len(data) - 1)
 	return data[index], nil
 }

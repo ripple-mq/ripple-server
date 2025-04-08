@@ -2,9 +2,11 @@ package producer
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
 
 	"github.com/charmbracelet/log"
+	"github.com/ripple-mq/ripple-server/internal/broker/ack"
 	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
@@ -50,7 +52,8 @@ func (t *ProducerServer[T]) InformLeaderStatus() {
 
 func (t *ProducerServer[T]) GossipPush(clientAddr acomm.ServerAddr, data queue.PayloadIF) {
 	if !t.amILeader.Get() {
-		t.server.SendToAsync(clientAddr.Addr, clientAddr.ID, struct{}{}, queue.Ack{Id: data.GetID()})
+		fmt.Println("I am not leader")
+		t.ackHandler.P2PServer.Send(clientAddr.Addr, struct{}{}, queue.Ack{Id: data.GetID()})
 		return
 	}
 
@@ -71,8 +74,8 @@ func (t *ProducerServer[T]) GossipPush(clientAddr acomm.ServerAddr, data queue.P
 		followersAddr = append(followersAddr, addr)
 	}
 
-	task := Task{
-		Server:        t.ackServer,
+	task := ack.Task{
+		AckHandler:    t.ackHandler,
 		AckClientAddr: clientAddr.Addr,
 		Receivers:     followersAddr,
 		Data:          data,

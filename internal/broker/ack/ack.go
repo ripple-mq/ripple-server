@@ -1,12 +1,12 @@
-package producer
+package ack
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/google/uuid"
 	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
@@ -15,25 +15,31 @@ import (
 )
 
 type Task struct {
-	Server        *asynctcp.Transport
+	AckHandler    *AcknowledgeHandler
 	AckClientAddr string
 	Receivers     []comm.PCServerID
-	Data          any
+	Data          queue.PayloadIF
 	Wg            *sync.WaitGroup
 	MsgID         int32
 }
 
 func (t Task) Exec() error {
+	count := 0
 	for _, addr := range t.Receivers {
-		if err := t.Server.SendToAsync(addr.BrokerAddr, addr.ProducerID, struct{}{}, t.Data); err != nil {
+		fmt.Println("follower: ", addr)
+		if err := t.AckHandler.P2PServer.SendToAsync(addr.BrokerAddr, addr.ProducerID, struct{}{}, t.Data); err != nil {
 			log.Errorf("failed to send data to follower: %v", addr)
 			continue
 		}
 		t.Wg.Add(1)
+		count++
 	}
-	ctx, cancel := GetAknowledge().Add(t.MsgID, t.Wg)
-	GetAknowledge().AcknowledgeClient(ctx, cancel, t.MsgID, func() {
-		t.Server.Send(t.AckClientAddr, struct{}{}, t.Data)
+	if count == 0 {
+		return nil
+	}
+	ctx, cancel := t.AckHandler.Add(t.MsgID, t.Wg)
+	t.AckHandler.AcknowledgeClient(ctx, cancel, t.MsgID, func() {
+		t.AckHandler.P2PServer.Send(t.AckClientAddr, struct{}{}, queue.Ack{Id: t.Data.GetID()})
 	})
 	return nil
 }
@@ -43,31 +49,20 @@ type Counter struct {
 	Quit chan struct{}
 }
 
-type Acknowledge struct {
-	server      *asynctcp.Transport
+type AcknowledgeHandler struct {
 	ackMessages *collection.ConcurrentMap[int32, *Counter]
+	P2PServer   *asynctcp.Transport
 }
 
-var ackInstance *Acknowledge
-
-func GetAknowledge() *Acknowledge {
-	if ackInstance != nil {
-		return ackInstance
-	}
-	ackInstance = newAcknowledge()
-	return ackInstance
+func NewAcknowledgeHandler(p2pServer *asynctcp.Transport) *AcknowledgeHandler {
+	return &AcknowledgeHandler{ackMessages: collection.NewConcurrentMap[int32, *Counter](), P2PServer: p2pServer}
 }
 
-func newAcknowledge() *Acknowledge {
-	server, _ := asynctcp.NewTransport(uuid.NewString())
-	return &Acknowledge{server: server}
-}
-
-func (t *Acknowledge) Run() {
+func (t *AcknowledgeHandler) Run() error {
 	go func() {
 		for {
 			var ack queue.Ack
-			_, err := t.server.Consume(encoder.GOBDecoder{}, &ack)
+			_, err := t.P2PServer.Consume(encoder.GOBDecoder{}, &ack)
 			if err != nil {
 				log.Errorf("failed to receive acknowledgement: %v", err)
 			}
@@ -79,16 +74,17 @@ func (t *Acknowledge) Run() {
 		}
 
 	}()
+	return nil
 }
 
-func (t *Acknowledge) Add(msgKey int32, wg *sync.WaitGroup) (context.Context, context.CancelFunc) {
+func (t *AcknowledgeHandler) Add(msgKey int32, wg *sync.WaitGroup) (context.Context, context.CancelFunc) {
 	counter := Counter{WG: wg, Quit: make(chan struct{})}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	t.ackMessages.Set(msgKey, &counter)
 	return ctx, cancel
 }
 
-func (t *Acknowledge) AcknowledgeClient(ctx context.Context, cancel context.CancelFunc, msgKey int32, ack func()) {
+func (t *AcknowledgeHandler) AcknowledgeClient(ctx context.Context, cancel context.CancelFunc, msgKey int32, ack func()) {
 	counter, err := t.ackMessages.Get(msgKey)
 	if err != nil {
 		log.Errorf("Message not added to Acknowledgement handler yet, %v", err)
