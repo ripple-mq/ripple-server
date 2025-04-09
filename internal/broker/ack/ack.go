@@ -10,7 +10,7 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 

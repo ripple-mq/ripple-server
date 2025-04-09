@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/eventloop"
 	tcpcomm "github.com/ripple-mq/ripple-server/pkg/p2p/transport/comm"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/eventloop"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 	"github.com/ripple-mq/ripple-server/pkg/utils/env"
 )

@@ -12,7 +12,7 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/internal/processor"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	acomm "github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
+	acomm "github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
 )
 
 // startPopulatingQueue consumes messages from the server and pushes them to the queue asynchronously.

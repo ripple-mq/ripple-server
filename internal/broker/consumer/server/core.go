@@ -8,7 +8,7 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
 )
 
 // AskQuery needs a standard serialization to make it compatible with all language/frameworks

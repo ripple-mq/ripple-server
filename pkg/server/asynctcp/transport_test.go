@@ -10,9 +10,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
 )
 
 const (

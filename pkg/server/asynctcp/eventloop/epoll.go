@@ -1,5 +1,5 @@
-//go:build darwin
-// +build darwin
+//go:build linux
+// +build linux
 
 package eventloop
 
@@ -8,32 +8,34 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
-	ic "github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/comm"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp/utils"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/comm"
+	ic "github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 
 const (
-	EVFILT_READ  = -1
-	EVFILT_WRITE = -2
-	EV_ADD       = 0x0001
-	EV_ENABLE    = 0x0000
-	EV_ONESHOT   = 0x0002
+	EPOLLIN       = 0x001
+	EPOLLOUT      = 0x004
+	EPOLLET       = 0x80000000
+	EPOLL_CTL_ADD = 1
+	EPOLL_CTL_MOD = 3
+	EPOLL_CTL_DEL = 2
 )
 
 type Server struct {
-	kq          int
+	epollFd     int
 	listenerFd  int
-	clients     *collection.ConcurrentMap[int, string]
-	listeners   *collection.ConcurrentMap[string, *ic.Subscriber]
 	tcpListener net.Listener
+	listeners   *collection.ConcurrentMap[string, *ic.Subscriber]
+	clients     *collection.ConcurrentMap[int, string]
 
 	Decoder          encoder.Decoder
 	mu               sync.Mutex
@@ -44,8 +46,6 @@ type Server struct {
 var serverInstance *Server
 var instanceCreationLock = sync.Mutex{}
 var instanceAccessLock = sync.Mutex{}
-var writeLock = sync.Mutex{}
-var readLock = sync.Mutex{}
 
 // GetServer returns a singleton instance of the Server for the given address.
 // It initializes the server only once and reuses the existing instance on subsequent calls.
@@ -72,60 +72,77 @@ func GetServer(addr string) (*Server, error) {
 // newServer initializes a TCP server, sets up a kqueue for event notification,
 // and registers the listener for read events. It returns the server instance or an error if any step fails.
 func newServer(addr string) (*Server, error) {
-	fmt.Println("Creating Eventloop")
-	listener, err := net.Listen("tcp", addr)
+	serverFD, err := syscall.Socket(syscall.AF_INET, syscall.O_NONBLOCK|syscall.SOCK_STREAM, 0)
 	if err != nil {
-		log.Errorf("error starting server: %v", err)
-		return nil, fmt.Errorf("error starting server: %v", err)
+		fmt.Println("ERR, ", err)
+		return nil, err
 	}
 
-	tcpListener, ok := listener.(*net.TCPListener)
-	if !ok {
-		log.Errorf("failed to assert listener to *net.TCPListener")
-		return nil, fmt.Errorf("failed to assert listener to *net.TCPListener")
+	// Set the Socket operate in a non-blocking mode
+	if err = syscall.SetNonblock(serverFD, true); err != nil {
+		fmt.Println("ERR, ", err)
+		return nil, err
 	}
 
-	listenerFile, err := tcpListener.File()
+	// Bind the IP and the port
+	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		log.Errorf("error getting listener file descriptor: %v", err)
-		return nil, fmt.Errorf("error getting listener file descriptor: %v", err)
+		fmt.Println("ERR, ", err)
+		return nil, err
+	}
+	p, _ := strconv.Atoi(portStr)
+	ip4 := net.ParseIP(host)
+	fmt.Println("Listening at, ", ip4, p)
+	if err = syscall.Bind(serverFD, &syscall.SockaddrInet4{
+		Port: p,
+		Addr: [4]byte{ip4[0], ip4[1], ip4[2], ip4[3]},
+	}); err != nil {
+		fmt.Println("ERR, ", err)
+		return nil, err
 	}
 
-	fd := int(listenerFile.Fd())
-	kq, err := syscall.Kqueue()
+	// Start listening
+	if err = syscall.Listen(serverFD, 1000); err != nil {
+		fmt.Println("ERR, ", err)
+		return nil, err
+	}
+
+	// AsyncIO starts here!!
+
+	// creating EPOLL instance
+	epollFD, err := syscall.EpollCreate1(0)
 	if err != nil {
-		log.Errorf("error creating kqueue: %v", err)
-		return nil, fmt.Errorf("error creating kqueue: %v", err)
+		log.Fatal(err)
 	}
 
-	kev := syscall.Kevent_t{
-		Ident:  uint64(fd),
-		Filter: EVFILT_READ,
-		Flags:  EV_ADD | EV_ENABLE,
+	// Specify the events we want to get hints about
+	// and set the socket on which
+	var socketServerEvent syscall.EpollEvent = syscall.EpollEvent{
+		Events: syscall.EPOLLIN,
+		Fd:     int32(serverFD),
 	}
 
-	if _, err := syscall.Kevent(kq, []syscall.Kevent_t{kev}, nil, nil); err != nil {
-		log.Errorf("error registering listener with kqueue: %v", err)
-		return nil, fmt.Errorf("error registering listener with kqueue: %v", err)
+	// Listen to read events on the Server itself
+	if err = syscall.EpollCtl(epollFD, syscall.EPOLL_CTL_ADD, serverFD, &socketServerEvent); err != nil {
+		fmt.Println("ERR, ", err)
+		return nil, err
 	}
 
 	return &Server{
-		kq:               kq,
-		listenerFd:       fd,
+		epollFd:          epollFD,
+		listenerFd:       serverFD,
 		clients:          collection.NewConcurrentMap[int, string](),
 		Decoder:          encoder.GOBDecoder{},
 		listeners:        collection.NewConcurrentMap[string, *ic.Subscriber](),
-		isLoopRunning:    collection.NewConcurrentValue(false),
 		mu:               sync.Mutex{},
+		isLoopRunning:    collection.NewConcurrentValue(false),
 		shutdownSignalCh: make(chan struct{}),
-		tcpListener:      listener,
 	}, nil
 }
 
 // Subscribe adds a subscriber to the server's listener map with the given ID.
 // It allows the server to push messages to respective subscriber channel.
 func (t *Server) Subscribe(id string, subscriber *ic.Subscriber) {
-
 	t.listeners.Set(id, subscriber)
 }
 
@@ -145,31 +162,27 @@ func (t *Server) Run() {
 	t.isLoopRunning.Set(true)
 	defer t.Clean()
 	log.Info("Started Eventloop...")
-	events := make([]syscall.Kevent_t, 10)
+	events := make([]syscall.EpollEvent, 10)
 	for {
 		select {
 		case <-t.shutdownSignalCh:
-			fmt.Println("HI")
 			return
 		default:
-			n, err := syscall.Kevent(t.kq, nil, events, nil)
+			n, err := syscall.EpollWait(t.epollFd, events[:], -1)
 			if err != nil {
 				continue
 			}
 
 			for i := range n {
 				event := events[i]
-				if event.Flags&syscall.EV_ERROR != 0 {
-					log.Errorf("event error: %v", event)
-					continue
-				}
+				fd := int(event.Fd)
 
-				if int(event.Ident) == t.listenerFd {
+				if fd == t.listenerFd {
 					if err := t.Accept(); err != nil {
 						log.Errorf("failed to accept new connection: %v", err)
 					}
 				} else {
-					if err := t.Read(event); err != nil {
+					if err := t.Read(fd); err != nil {
 						log.Errorf("failed to read message: %v", err)
 					}
 				}
@@ -184,24 +197,24 @@ func (t *Server) Run() {
 func (t *Server) Accept() error {
 	connFd, sa, err := syscall.Accept(t.listenerFd)
 	if err != nil {
-		fmt.Println("Accept error:", err)
 		return fmt.Errorf("accept error: %v", err)
 	}
 
+	syscall.SetNonblock(t.listenerFd, true)
 	addr := utils.SockaddrToString(sa)
 	t.clients.Set(connFd, addr)
 
-	kev := syscall.Kevent_t{
-		Ident:  uint64(connFd),
-		Filter: EVFILT_READ,
-		Flags:  EV_ADD | EV_ENABLE,
+	event := syscall.EpollEvent{
+		Events: syscall.EPOLLIN,
+		Fd:     int32(connFd),
 	}
-	if _, err := syscall.Kevent(t.kq, []syscall.Kevent_t{kev}, nil, nil); err != nil {
-		fmt.Println("Error adding connection to kqueue:", err)
+
+	if err := syscall.EpollCtl(t.epollFd, EPOLL_CTL_ADD, connFd, &event); err != nil {
+		fmt.Println("Error adding connection to epoll:", err)
 		syscall.Close(connFd)
-		return fmt.Errorf("error adding connection to kqueue: %v", err)
+		return fmt.Errorf("error adding connection to epoll: %v", err)
 	}
-	fmt.Printf("Accepted connection from %s\n", addr)
+	fmt.Printf("Accepted connection from fd %d\n", connFd)
 	return nil
 }
 
@@ -227,38 +240,39 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		fmt.Println("Write error ", err)
 		return fmt.Errorf("failed to connect to %s: %v", address, err)
 	}
 
 	connFile, err := conn.(*net.TCPConn).File()
 	if err != nil {
-		fmt.Println("Write error ", err)
 		return fmt.Errorf("failed to get file descriptor: %v", err)
 	}
 
 	fd := int(connFile.Fd())
-	kev := syscall.Kevent_t{
-		Ident:  uint64(fd),
-		Filter: EVFILT_READ,
-		Flags:  EV_ADD | EV_ENABLE,
+
+	// Register the new connection with epoll for both read and write events
+	event := syscall.EpollEvent{
+		Events: uint32(syscall.EPOLLIN) | syscall.EPOLLOUT,
+		Fd:     int32(fd),
 	}
 
-	if _, err := syscall.Kevent(t.kq, []syscall.Kevent_t{kev}, nil, nil); err != nil {
-		fmt.Println("Write error ", err)
+	syscall.SetNonblock(fd, true)
+	if err := syscall.EpollCtl(t.epollFd, syscall.EPOLL_CTL_ADD, fd, &event); err != nil {
 		conn.Close()
 		return fmt.Errorf("failed to register new connection: %v", err)
 	}
 
+	// Add the connection to the clients map
 	t.clients.Set(fd, address)
+
+	// Send the data
 	_, _ = t.write(fd, metadata)
 	_, err = t.write(fd, data)
 	return err
 }
 
+// Blocking write
 func (t *Server) write(fd int, data []byte) (int, error) {
-	writeLock.Lock()
-	defer writeLock.Unlock()
 	written := 0
 	for written < len(data) {
 		n, err := syscall.Write(fd, data[written:])
@@ -278,48 +292,48 @@ func (t *Server) write(fd int, data []byte) (int, error) {
 // It reads the message length, then the actual data, decodes it, and forwards it to the appropriate subscriber.
 // If the subscriber hasn't been greeted yet, it sends a greeting; otherwise, it pushes the message.
 // Errors during reading or processing lead to client removal and error reporting.
-func (t *Server) Read(event syscall.Kevent_t) error {
-	readLock.Lock()
-	defer readLock.Unlock()
-
+func (t *Server) Read(fd int) error {
 	lengthBytes := make([]byte, 4)
-	_, _ = syscall.Read(int(event.Ident), lengthBytes)
+	_, _ = syscall.Read(fd, lengthBytes)
 	length := binary.BigEndian.Uint32(lengthBytes)
 
 	buf := make([]byte, length)
-	n, err := t.read(int(event.Ident), buf)
+	n, err := t.read(fd, buf)
 	if err != nil {
-		t.removeClient(int(event.Ident))
+		t.removeClient(fd)
 		return fmt.Errorf("read error: %v", err)
 	}
+
 	if n > 0 {
 		payload := t.decodeToPayload(buf[:n])
 		subscriber, err := t.listeners.Get(payload.ID)
 		if err != nil {
 			// Invalid Id might indicate unsubscribed servers, so dropping connection
-			t.removeClient(int(event.Ident))
+			t.removeClient(fd)
 			return fmt.Errorf("no listeners found with ID %s, error = %v", payload.ID, err)
 		}
-		addr, _ := t.clients.Get(int(event.Ident))
+
+		addr, _ := t.clients.Get(fd)
 		if !subscriber.GreetStatus.Get() {
+			fmt.Println("grreting metadata")
 			subscriber.Greet(ic.Message{RemoteAddr: addr, RemoteID: payload.FromServerID, Payload: payload.Data})
 			subscriber.GreetStatus.Set(true)
 		} else {
 			subscriber.Push(ic.Message{RemoteAddr: addr, RemoteID: payload.FromServerID, Payload: payload.Data})
 		}
 	} else {
-		t.removeClient(int(event.Ident))
+		t.removeClient(fd)
 	}
-
 	return nil
 }
 
-// Read completely
+// read completely
 func (t *Server) read(fd int, buffer []byte) (int, error) {
 	totalRead := 0
 	for totalRead < len(buffer) {
 		n, err := syscall.Read(fd, buffer[totalRead:])
 		if err != nil {
+			fmt.Println("ERR, ", err)
 			return totalRead, err
 		}
 		if n == 0 {
@@ -331,29 +345,15 @@ func (t *Server) read(fd int, buffer []byte) (int, error) {
 }
 
 // removeClient closes the client connection and removes it from the active client list.
-func (s *Server) removeClient(fd int) {
-	if _, err := s.clients.Get(fd); err == nil {
-		// Prepare the kevent to remove the fd
-		change := syscall.Kevent_t{
-			Ident:  uint64(fd),
-			Filter: syscall.EVFILT_READ,
-			Flags:  syscall.EV_DELETE,
-		}
+func (t *Server) removeClient(fd int) {
+	if _, err := t.clients.Get(fd); err == nil {
 
-		// Remove the fd from kqueue
-		if _, err := syscall.Kevent(s.kq, []syscall.Kevent_t{change}, nil, nil); err != nil {
-			log.Warnf("Failed to remove FD %d from kqueue: %v", fd, err)
+		t.clients.Delete(fd)
+		if err := syscall.EpollCtl(t.epollFd, syscall.EPOLL_CTL_DEL, fd, nil); err != nil {
+			log.Warnf("Failed to remove FD %d from epoll: %v", fd, err)
 		}
-
-		// Close the file descriptor
-		if err := syscall.Close(fd); err != nil {
-			log.Warnf("Failed to close FD %d: %v", fd, err)
-		} else {
-			fmt.Printf("Client %d disconnected\n", fd)
-		}
-
-		// Finally, remove from the client map
-		s.clients.Delete(fd)
+		er := syscall.Close(fd)
+		fmt.Printf("Client %d disconnected : %v\n", fd, er)
 	}
 }
 
@@ -367,13 +367,12 @@ func (t *Server) decodeToPayload(data []byte) comm.Payload {
 	return msg
 }
 
-// Clean gracefully shuts down the server, closing all client connections,
-// the listener socket, and the kqueue.
 func (t *Server) Clean() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	// clearing serverInstance, so that one can reinstantiate eventloop smoothly
+	fmt.Println("CLEANING STARTED >>>>>>>>>>>>>> ")
+	// release lock to allow creating new Server instance
 	instanceCreationLock.Unlock()
 
 	if err := t.tcpListener.Close(); err != nil {
@@ -397,7 +396,7 @@ func (t *Server) Clean() error {
 	}
 
 	// Close the kqueue
-	if err := syscall.Close(t.kq); err != nil {
+	if err := syscall.Close(t.epollFd); err != nil {
 		log.Errorf("Error closing kqueue: %v", err)
 	} else {
 		log.Info("Kqueue closed.")
@@ -409,5 +408,5 @@ func (t *Server) Clean() error {
 
 // Stop stops server, blocking in nature
 func (t *Server) Stop() {
-	// t.shutdownSignalCh <- struct{}{}
+	syscall.Close(t.listenerFd)
 }

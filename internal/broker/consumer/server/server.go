@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
-	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/asynctcp"
+	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp"
 )
 
 type ConsumerServer[T queue.PayloadIF] struct {
