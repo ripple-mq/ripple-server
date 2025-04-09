@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp"
@@ -129,7 +128,6 @@ func TestTransport_Recieve(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lighthouse.GetLightHouse()
 			server, _ := asynctcp.NewTransport(tt.serverId, asynctcp.TransportOpts{OnAcceptingConn: func(msg comm.Message) { fmt.Println(msg) }})
 			client, err := tcp.NewTransport(tt.clientAddr, dummyOnConnFunction)
 
