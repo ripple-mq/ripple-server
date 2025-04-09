@@ -11,6 +11,8 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/peer"
 )
 
+// handleConnection processes incoming data from a network connection, handling message length and payload.
+// It calls the OnAcceptingConn function on the first message and enqueues subsequent messages to the incoming queue.
 func (t *Transport) handleConnection(conn net.Conn) {
 	isOnConnExecuted := false
 	defer func() {
@@ -46,6 +48,8 @@ func (t *Transport) handleConnection(conn net.Conn) {
 	}
 }
 
+// getConnection retrieves an existing connection for the given address from the PeersMap.
+// Returns the peer associated with the address or an error if no connection exists.
 func (t *Transport) getConnection(addr string) (peer.Peer, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -56,6 +60,7 @@ func (t *Transport) getConnection(addr string) (peer.Peer, error) {
 	return nil, fmt.Errorf("failed to get connection")
 }
 
+// addConnection adds a new connection to the PeersMap and returns the corresponding peer.
 func (t *Transport) addConnection(conn net.Conn) peer.Peer {
 	t.mu.Lock()
 	x := conn.RemoteAddr().String()
@@ -65,6 +70,8 @@ func (t *Transport) addConnection(conn net.Conn) peer.Peer {
 	return res
 }
 
+// dropConnection removes a connection for the given address from the PeersMap and closes it.
+// Returns an error if no connection exists for the address.
 func (t *Transport) dropConnection(addr string) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()

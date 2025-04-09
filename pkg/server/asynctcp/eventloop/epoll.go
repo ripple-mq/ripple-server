@@ -21,26 +21,29 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 
+// Constants for epoll events and operations used for I/O multiplexing.
 const (
-	EPOLLIN       = 0x001
-	EPOLLOUT      = 0x004
-	EPOLLET       = 0x80000000
-	EPOLL_CTL_ADD = 1
-	EPOLL_CTL_MOD = 3
-	EPOLL_CTL_DEL = 2
+	EPOLLIN       = 0x001      // Event for ready-to-read state
+	EPOLLOUT      = 0x004      // Event for ready-to-write state
+	EPOLLET       = 0x80000000 // Edge-triggered mode for epoll
+	EPOLL_CTL_ADD = 1          // Operation to add a file descriptor to epoll
+	EPOLL_CTL_MOD = 3          // Operation to modify an existing file descriptor in epoll
+	EPOLL_CTL_DEL = 2          // Operation to delete a file descriptor from epoll
 )
 
+// Server represents a network server with epoll-based I/O multiplexing, handling incoming connections
+// and maintaining active clients and listeners.
 type Server struct {
-	epollFd     int
-	listenerFd  int
-	tcpListener net.Listener
-	listeners   *collection.ConcurrentMap[string, *ic.Subscriber]
-	clients     *collection.ConcurrentMap[int, string]
+	epollFd     int                                               // epoll file descriptor for event notifications
+	listenerFd  int                                               // Listener file descriptor for incoming connections
+	tcpListener net.Listener                                      // TCP listener for accepting connections
+	listeners   *collection.ConcurrentMap[string, *ic.Subscriber] // Map of active listeners
+	clients     *collection.ConcurrentMap[int, string]            // Map of connected clients
 
-	Decoder          encoder.Decoder
-	mu               sync.Mutex
-	isLoopRunning    *collection.ConcurrentValue[bool]
-	shutdownSignalCh chan struct{}
+	Decoder          encoder.Decoder                   // Decoder for incoming messages
+	mu               sync.Mutex                        // Mutex for synchronization
+	isLoopRunning    *collection.ConcurrentValue[bool] // Flag indicating if the event loop is running
+	shutdownSignalCh chan struct{}                     // Channel for shutdown signal
 }
 
 var serverInstance *Server
@@ -69,30 +72,26 @@ func GetServer(addr string) (*Server, error) {
 	return serverInstance, nil
 }
 
-// newServer initializes a TCP server, sets up a kqueue for event notification,
-// and registers the listener for read events. It returns the server instance or an error if any step fails.
+// newServer creates and initializes a new eventloop that listens on the provided address.
+// It sets up the socket, binds the address, and prepares the server to accept incoming connections.
 func newServer(addr string) (*Server, error) {
 	serverFD, err := syscall.Socket(syscall.AF_INET, syscall.O_NONBLOCK|syscall.SOCK_STREAM, 0)
 	if err != nil {
-		fmt.Println("ERR, ", err)
 		return nil, err
 	}
 
-	// Set the Socket operate in a non-blocking mode
 	if err = syscall.SetNonblock(serverFD, true); err != nil {
-		fmt.Println("ERR, ", err)
 		return nil, err
 	}
 
 	// Bind the IP and the port
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		fmt.Println("ERR, ", err)
 		return nil, err
 	}
 	p, _ := strconv.Atoi(portStr)
 	ip4 := net.ParseIP(host)
-	fmt.Println("Listening at, ", ip4, p)
+	log.Infof("Listening at, %d %d ", ip4, p)
 	if err = syscall.Bind(serverFD, &syscall.SockaddrInet4{
 		Port: p,
 		Addr: [4]byte{ip4[0], ip4[1], ip4[2], ip4[3]},
@@ -101,28 +100,21 @@ func newServer(addr string) (*Server, error) {
 		return nil, err
 	}
 
-	// Start listening
 	if err = syscall.Listen(serverFD, 1000); err != nil {
 		fmt.Println("ERR, ", err)
 		return nil, err
 	}
 
-	// AsyncIO starts here!!
-
-	// creating EPOLL instance
 	epollFD, err := syscall.EpollCreate1(0)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Specify the events we want to get hints about
-	// and set the socket on which
 	var socketServerEvent syscall.EpollEvent = syscall.EpollEvent{
 		Events: syscall.EPOLLIN,
 		Fd:     int32(serverFD),
 	}
 
-	// Listen to read events on the Server itself
 	if err = syscall.EpollCtl(epollFD, syscall.EPOLL_CTL_ADD, serverFD, &socketServerEvent); err != nil {
 		fmt.Println("ERR, ", err)
 		return nil, err

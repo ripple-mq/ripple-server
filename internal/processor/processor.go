@@ -15,6 +15,7 @@ type Processor struct {
 
 var processorInstance *Processor
 
+// Singleton class to get task executor
 func GetProcessor() *Processor {
 	if processorInstance != nil {
 		return processorInstance
@@ -32,6 +33,7 @@ func (t *Processor) Run() {
 	go t.run()
 }
 
+// Run continuously poll task from queue and execute asynchronously
 func (t *Processor) run() {
 	for {
 		if t.q.IsEmpty() {

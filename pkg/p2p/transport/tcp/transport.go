@@ -23,21 +23,25 @@ type TransportOpts struct {
 	Ack                    bool
 }
 
-// Transport implements Transport
+// Transport provides an implementation for handling network connections, message encoding,
+// and managing peers for communication. It supports connection handling, message processing,
+// and acknowledgment management.
 type Transport struct {
-	ListenAddr             net.Addr
-	IncommingMsgQueue      chan Message
-	Encoder                encoder.Encoder
-	OnAcceptingConn        func(conn net.Conn, message []byte)
-	ShouldClientHandleConn bool
-	Ack                    bool
+	ListenAddr             net.Addr                            // The address the transport listens on
+	IncommingMsgQueue      chan Message                        // Queue for incoming messages
+	Encoder                encoder.Encoder                     // Encoder used for encoding messages
+	OnAcceptingConn        func(conn net.Conn, message []byte) // Callback for handling accepted connections
+	ShouldClientHandleConn bool                                // Flag to determine if the client should handle connections
+	Ack                    bool                                // Flag indicating if acknowledgment is enabled
 
-	mu       *sync.RWMutex
-	PeersMap map[string]peer.Peer
-	listener net.Listener
-	wg       sync.WaitGroup
+	mu       *sync.RWMutex        // Mutex for synchronizing access to shared resources
+	PeersMap map[string]peer.Peer // Map storing active peers by address
+	listener net.Listener         // Listener for incoming connections
+	wg       sync.WaitGroup       // WaitGroup to manage goroutine synchronization
 }
 
+// NewTransport creates a new Transport instance with the specified address, connection handler, and options.
+// It returns the initialized Transport and any error encountered during initialization.
 func NewTransport(addr string, OnAcceptingConn func(conn net.Conn, message []byte), opts ...TransportOpts) (*Transport, error) {
 	defaultOpts := TransportOpts{ShouldClientHandleConn: true, Ack: false}
 	if len(opts) > 0 {

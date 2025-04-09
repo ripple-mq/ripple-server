@@ -20,25 +20,28 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 
+// Constants for kqueue events and operations used for I/O multiplexing.
 const (
-	EVFILT_READ  = -1
-	EVFILT_WRITE = -2
-	EV_ADD       = 0x0001
-	EV_ENABLE    = 0x0000
-	EV_ONESHOT   = 0x0002
+	EVFILT_READ  = -1     // Filter for read events
+	EVFILT_WRITE = -2     // Filter for write events
+	EV_ADD       = 0x0001 // Operation to add a file descriptor to kqueue
+	EV_ENABLE    = 0x0000 // Operation to enable event notifications for a file descriptor
+	EV_ONESHOT   = 0x0002 // Operation to set an event to be triggered only once
 )
 
+// Server represents a network server utilizing kqueue for I/O multiplexing, handling connections and events.
+// It manages incoming connections, active clients, listeners, and event processing.
 type Server struct {
-	kq          int
-	listenerFd  int
-	clients     *collection.ConcurrentMap[int, string]
-	listeners   *collection.ConcurrentMap[string, *ic.Subscriber]
-	tcpListener net.Listener
+	kq          int                                               // kqueue file descriptor for event notifications
+	listenerFd  int                                               // Listener file descriptor for incoming connections
+	clients     *collection.ConcurrentMap[int, string]            // Map of active clients
+	listeners   *collection.ConcurrentMap[string, *ic.Subscriber] // Map of active listeners
+	tcpListener net.Listener                                      // TCP listener for accepting connections
 
-	Decoder          encoder.Decoder
-	mu               sync.Mutex
-	isLoopRunning    *collection.ConcurrentValue[bool]
-	shutdownSignalCh chan struct{}
+	Decoder          encoder.Decoder                   // Decoder for incoming messages
+	mu               sync.Mutex                        // Mutex for synchronization
+	isLoopRunning    *collection.ConcurrentValue[bool] // Flag indicating if the event loop is running
+	shutdownSignalCh chan struct{}                     // Channel for shutdown signal
 }
 
 var serverInstance *Server

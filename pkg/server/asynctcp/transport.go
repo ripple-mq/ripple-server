@@ -14,13 +14,15 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/utils/env"
 )
 
+// Transport manages network communication, including event loops, message encoding,
+// and handling incoming connections with optional acknowledgment.
 type Transport struct {
-	EventLoop       *eventloop.Server
-	ListenAddr      comm.ServerAddr
-	Encoder         encoder.Encoder
-	subscriber      *comm.Subscriber
-	Ack             bool
-	OnAcceptingConn func(msg comm.Message)
+	EventLoop       *eventloop.Server      // The event loop server for handling communication
+	ListenAddr      comm.ServerAddr        // The address to listen on for incoming connections
+	Encoder         encoder.Encoder        // Encoder used for encoding messages
+	subscriber      *comm.Subscriber       // Subscriber for receiving messages
+	Ack             bool                   // Flag indicating if acknowledgment is enabled
+	OnAcceptingConn func(msg comm.Message) // Callback function for handling accepted connections
 }
 
 type TransportOpts struct {

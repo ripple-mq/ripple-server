@@ -2,7 +2,6 @@ package ack
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -14,19 +13,21 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 
+// Task represents a unit of work that sends data to multiple followers and handles acknowledgments.
 type Task struct {
-	AckHandler    *AcknowledgeHandler
-	AckClientAddr string
-	Receivers     []comm.PCServerID
-	Data          queue.PayloadIF
-	Wg            *sync.WaitGroup
-	MsgID         int32
+	AckHandler    *AcknowledgeHandler // AcknowledgeHandler for managing acknowledgment
+	AckClientAddr string              // Client (producer) address for final acknowledgment
+	Receivers     []comm.PCServerID   // List of followers (consumers) to send data to
+	Data          queue.PayloadIF     // The data to be forwarded to followers
+	Wg            *sync.WaitGroup     // WaitGroup to wait for all acknowledgment responses
+	MsgID         int32               // Unique message identifier for this task
 }
 
+// Exec sends data to all followers asynchronously and manages acknowledgment.
+// Once all followers acknowledge, it sends the final acknowledgment to the client.
 func (t Task) Exec() error {
 	count := 0
 	for _, addr := range t.Receivers {
-		fmt.Println("follower: ", addr)
 		if err := t.AckHandler.P2PServer.SendToAsync(addr.BrokerAddr, addr.ProducerID, struct{}{}, t.Data); err != nil {
 			log.Errorf("failed to send data to follower: %v", addr)
 			continue
@@ -58,6 +59,8 @@ func NewAcknowledgeHandler(p2pServer *asynctcp.Transport) *AcknowledgeHandler {
 	return &AcknowledgeHandler{ackMessages: collection.NewConcurrentMap[int32, *Counter](), P2PServer: p2pServer}
 }
 
+// Run starts a goroutine that listens for acknowledgments from the P2P server.
+// Upon receiving an acknowledgment, it marks the corresponding task as done.
 func (t *AcknowledgeHandler) Run() error {
 	go func() {
 		for {
@@ -77,6 +80,8 @@ func (t *AcknowledgeHandler) Run() error {
 	return nil
 }
 
+// Add stores a new acknowledgment task with a timeout context and wait group.
+// It associates the given message key with a counter that tracks acknowledgment progress.
 func (t *AcknowledgeHandler) Add(msgKey int32, wg *sync.WaitGroup) (context.Context, context.CancelFunc) {
 	counter := Counter{WG: wg, Quit: make(chan struct{})}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -84,6 +89,8 @@ func (t *AcknowledgeHandler) Add(msgKey int32, wg *sync.WaitGroup) (context.Cont
 	return ctx, cancel
 }
 
+// AcknowledgeClient waits for the acknowledgment of a message, executing the provided callback
+// once the acknowledgment is received, or canceling if the timeout context is reached.
 func (t *AcknowledgeHandler) AcknowledgeClient(ctx context.Context, cancel context.CancelFunc, msgKey int32, ack func()) {
 	counter, err := t.ackMessages.Get(msgKey)
 	if err != nil {

@@ -41,7 +41,7 @@ func (t *Server) Listen() error {
 
 // Stop stops existing pub/sub servers accepting new connections
 //
-// Note: existing connection will continue to serve
+// Note: existing connection will continue to serve only if p2p server is being used
 func (t *Server) Stop() {
 	t.PS.Stop()
 	t.CS.Stop()

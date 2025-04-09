@@ -2,7 +2,6 @@ package producer
 
 import (
 	"bytes"
-	"fmt"
 	"sync"
 
 	"github.com/charmbracelet/log"
@@ -18,7 +17,7 @@ import (
 // startPopulatingQueue consumes messages from the server and pushes them to the queue asynchronously.
 //
 // It continuously listens for incoming messages, decodes them, and adds them to the queue.
-// The function runs in a separate goroutine to avoid blocking other operations.
+// Triggers gossip asynchronously to spread data to followers & handle acknowledgment
 func (t *ProducerServer[T]) startPopulatingQueue() {
 	go func() {
 		for {
@@ -36,7 +35,7 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 
 // onAcceptingProducer handles new Producer connections and logs the connection details along with the metadata message.
 //
-// Note: it will be executed for every new connection
+// Note: it will be executed for every new producer connection
 func onAcceptingProdcuer(msg acomm.Message) {
 	var MSG string
 	err := encoder.GOBDecoder{}.Decode(bytes.NewBuffer(msg.Payload), &MSG)
@@ -50,9 +49,11 @@ func (t *ProducerServer[T]) InformLeaderStatus() {
 	t.amILeader.Set(true)
 }
 
+// GossipPush handles pushing messages to replicas & acknowledgement.
+// Leader pushes data to replicas & adds ack task to queue.
+// Followers acknowledges client (leader).
 func (t *ProducerServer[T]) GossipPush(clientAddr acomm.ServerAddr, data queue.PayloadIF) {
 	if !t.amILeader.Get() {
-		fmt.Println("I am not leader")
 		t.ackHandler.P2PServer.Send(clientAddr.Addr, struct{}{}, queue.Ack{Id: data.GetID()})
 		return
 	}

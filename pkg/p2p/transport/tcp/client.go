@@ -10,6 +10,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/peer"
 )
 
+// send establishes a connection to the given address, then encodes and sends the data to the peer.
 func (t *Transport) send(addr string, metadata any, data any) error {
 	peerNode, err := t.dial(addr, metadata)
 	if err != nil {
@@ -20,6 +21,8 @@ func (t *Transport) send(addr string, metadata any, data any) error {
 	return nil
 }
 
+// write encodes the given data and sends it to the specified peer node,
+// first sending the length of the message followed by the message itself.
 func (t *Transport) write(peerNode peer.Peer, data any) {
 	var msg bytes.Buffer
 	_ = t.Encoder.Encode(data, &msg)
@@ -38,6 +41,9 @@ func (t *Transport) write(peerNode peer.Peer, data any) {
 	}
 }
 
+// dial attempts to establish a connection to the given address and returns the associated peer node.
+//   - If a connection already exists, it returns the existing peer; otherwise, it establishes a new one.
+//   - Based on config, it can start listening on same connection.
 func (t *Transport) dial(addr string, metadata any) (peer.Peer, error) {
 	peerNode, _ := t.getConnection(addr)
 	if peerNode != nil {
