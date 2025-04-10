@@ -25,11 +25,14 @@ type Config struct {
 		Replicas int
 	}
 	EventLoop struct {
-		Max_fd_soft_limit        int64
-		Task_queue_buffer_size   int32
-		Kqueue_event_buffer_size int32
-		Epoll_event_buffer_size  int32
-		Blocking_mode            bool
+		Max_fd_soft_limit          int64
+		Task_queue_buffer_size     int32
+		Kqueue_event_buffer_size   int32
+		Epoll_event_buffer_size    int32
+		Blocking_mode              bool
+		Write_time_space_ms        int32
+		Max_connection             int32
+		Per_connection_buffer_size int32
 	}
 	AsyncTCP struct {
 		Port int

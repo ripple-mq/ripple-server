@@ -19,6 +19,7 @@ import (
 	ic "github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
 	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 // Constants for epoll events and operations used for I/O multiplexing.
@@ -154,7 +155,7 @@ func (t *Server) Run() {
 	t.isLoopRunning.Set(true)
 	defer t.Clean()
 	log.Info("Started Eventloop...")
-	events := make([]syscall.EpollEvent, 10)
+	events := make([]syscall.EpollEvent, config.Conf.EventLoop.Max_fd_soft_limit)
 	for {
 		select {
 		case <-t.shutdownSignalCh:
@@ -194,6 +195,9 @@ func (t *Server) Accept() error {
 
 	syscall.SetNonblock(t.listenerFd, true)
 	addr := utils.SockaddrToString(sa)
+	if t.clients.Size() >= int(config.Conf.EventLoop.Max_connection) {
+		return fmt.Errorf("max connection count reached: %d", config.Conf.EventLoop.Max_connection)
+	}
 	t.clients.Set(connFd, addr)
 
 	event := syscall.EpollEvent{
@@ -203,6 +207,7 @@ func (t *Server) Accept() error {
 
 	if err := syscall.EpollCtl(t.epollFd, EPOLL_CTL_ADD, connFd, &event); err != nil {
 		fmt.Println("Error adding connection to epoll:", err)
+		t.clients.Delete(connFd)
 		syscall.Close(connFd)
 		return fmt.Errorf("error adding connection to epoll: %v", err)
 	}
@@ -271,7 +276,7 @@ func (t *Server) write(fd int, data []byte) (int, error) {
 		if n > 0 {
 			written += n
 		} else if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(time.Duration(config.Conf.EventLoop.Write_time_space_ms) * time.Millisecond) // TODO need to test
 			continue
 		} else {
 			return 0, fmt.Errorf("failed to write data: %v", err)
