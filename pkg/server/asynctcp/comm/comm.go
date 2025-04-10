@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 type ServerAddr struct {
@@ -28,7 +29,7 @@ type Subscriber struct {
 func NewSubscriber(id string, OnAcceptingConn func(Message)) *Subscriber {
 	return &Subscriber{
 		ID:                id,
-		IncommingMsgQueue: make(chan Message, 1000),
+		IncommingMsgQueue: make(chan Message, config.Conf.EventLoop.Per_connection_buffer_size),
 		OnAcceptingConn:   OnAcceptingConn,
 		GreetStatus:       collection.NewConcurrentValue(false),
 	}

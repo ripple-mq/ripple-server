@@ -18,6 +18,7 @@ import (
 	ic "github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
 	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 // Constants for kqueue events and operations used for I/O multiplexing.
@@ -148,7 +149,7 @@ func (t *Server) Run() {
 	t.isLoopRunning.Set(true)
 	defer t.Clean()
 	log.Info("Started Eventloop...")
-	events := make([]syscall.Kevent_t, 10)
+	events := make([]syscall.Kevent_t, config.Conf.EventLoop.Max_fd_soft_limit)
 	for {
 		select {
 		case <-t.shutdownSignalCh:
@@ -192,6 +193,9 @@ func (t *Server) Accept() error {
 	}
 
 	addr := utils.SockaddrToString(sa)
+	if t.clients.Size() >= int(config.Conf.EventLoop.Max_connection) {
+		return fmt.Errorf("max connection count reached: %d", config.Conf.EventLoop.Max_connection)
+	}
 	t.clients.Set(connFd, addr)
 
 	kev := syscall.Kevent_t{
@@ -201,10 +205,12 @@ func (t *Server) Accept() error {
 	}
 	if _, err := syscall.Kevent(t.kq, []syscall.Kevent_t{kev}, nil, nil); err != nil {
 		fmt.Println("Error adding connection to kqueue:", err)
+		t.clients.Delete(connFd)
 		syscall.Close(connFd)
 		return fmt.Errorf("error adding connection to kqueue: %v", err)
 	}
 	fmt.Printf("Accepted connection from %s\n", addr)
+
 	return nil
 }
 
@@ -268,7 +274,7 @@ func (t *Server) write(fd int, data []byte) (int, error) {
 		if n > 0 {
 			written += n
 		} else if err == syscall.EAGAIN || err == syscall.EWOULDBLOCK {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(time.Duration(config.Conf.EventLoop.Write_time_space_ms) * time.Millisecond) // TODO need to test
 			continue
 		} else {
 			return 0, fmt.Errorf("failed to write data: %v", err)
