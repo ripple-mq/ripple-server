@@ -135,7 +135,7 @@ func (t *Transport) write(addr string, metadata any, data any) error {
 	// sending metadata & data together
 	err := t.EventLoop.Send(addr, fullMetadata, fullData)
 	if err != nil {
-		return fmt.Errorf("failed to send length: %v", err)
+		return fmt.Errorf("failed  to send length: %v", err)
 	}
 
 	return nil
