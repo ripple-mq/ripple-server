@@ -1,5 +1,5 @@
-//go:build linux
-// +build linux
+//go:build linux && !newimpl
+// +build linux,!newimpl
 
 package eventloop
 
