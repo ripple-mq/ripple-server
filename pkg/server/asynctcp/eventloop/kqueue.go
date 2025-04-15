@@ -1,5 +1,5 @@
-//go:build darwin
-// +build darwin
+//go:build darwin && !newimpl
+// +build darwin,!newimpl
 
 package eventloop
 
