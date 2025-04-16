@@ -11,6 +11,7 @@ services:
     ports:
       - "8901:8790" # eventloop running
       - "8891:8891" # bootstrap gRPC
+      - "6060:6060" # performance profiling
     depends_on:
       - zookeeper
     environment:

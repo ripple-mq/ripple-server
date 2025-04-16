@@ -3,7 +3,8 @@ package cmd
 import (
 	"fmt"
 	"math/rand"
-
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 
 	"github.com/charmbracelet/log"
@@ -24,7 +25,11 @@ func RandLocalAddr() string {
 
 func Execute() {
 	cfg := config.Conf
-
+	go func() {
+		addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", "127.0.0.1"), 6060)
+		log.Info("Profiling")
+		log.Info(http.ListenAndServe(addr, nil))
+	}()
 	log.Info(cfg)
 
 	// addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", ""), config.Conf.AsyncTCP.Port)

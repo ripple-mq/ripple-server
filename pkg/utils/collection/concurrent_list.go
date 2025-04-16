@@ -43,8 +43,8 @@ func (t *ConcurrentList[T]) Append(value T) {
 }
 
 func (t *ConcurrentList[T]) Size() int {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return len(t.list)
 }
 
@@ -61,8 +61,8 @@ func (t *ConcurrentList[T]) RemoveFirst() T {
 
 func (t *ConcurrentList[T]) Range(start int, end int) []T {
 	var data []T
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	end = min(end, len(t.list))
 	if start >= end {
 		return data
