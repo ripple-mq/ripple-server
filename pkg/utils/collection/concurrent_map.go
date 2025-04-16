@@ -18,8 +18,8 @@ func NewConcurrentMap[K comparable, V any]() *ConcurrentMap[K, V] {
 }
 
 func (t *ConcurrentMap[K, V]) Size() int {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return len(t.kv)
 }
 
