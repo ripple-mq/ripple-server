@@ -21,12 +21,12 @@ type InternalRPCServerAddr struct {
 
 type Broker struct {
 	topic         tp.TopicBucket
-	WatchLeaderCh chan struct{}
+	WatchLeaderCh chan bool
 }
 
 // NewBroker returns `*Broker` with specified topic
 func NewBroker(topic tp.TopicBucket) *Broker {
-	return &Broker{topic: topic, WatchLeaderCh: make(chan struct{})}
+	return &Broker{topic: topic, WatchLeaderCh: make(chan bool)}
 }
 
 // Run spins up Pub/Sub servers & starts listening to new conn
@@ -75,9 +75,8 @@ func (t *Broker) RunCleanupLoop(server *server.Server, ch <-chan struct{}) {
 //
 // TODO: Spin up cron job to distribute messages to follower in batches
 func (t *Broker) watchLeader(bs *server.Server) {
-	for {
-		<-t.WatchLeaderCh
-		bs.InformLeaderStatus()
+	for v := range t.WatchLeaderCh {
+		bs.InformLeaderStatus(v)
 	}
 }
 

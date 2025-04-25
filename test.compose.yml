@@ -22,6 +22,25 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+
+  ripple-server-2:
+    build:
+      context: .
+      dockerfile: docker/test/Dockerfile
+    networks:
+      custom-net:
+        ipv4_address: 172.28.0.4
+    depends_on:
+      - zookeeper
+    environment:
+      - ZK_IPv4=172.28.0.3
+      - ASYNC_TCP_IPv4=172.28.0.4
+      - ZK_PORT=2181
+    restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      
   zookeeper:
     image: zookeeper
     container_name: zookeeper

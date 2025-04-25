@@ -2,6 +2,7 @@ package producer
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
 
 	"github.com/charmbracelet/log"
@@ -28,6 +29,7 @@ func (t *ProducerServer[T]) startPopulatingQueue() {
 			}
 
 			t.q.Push(data)
+			fmt.Println("data: ", data)
 			go t.GossipPush(clientAddr, data)
 		}
 	}()
@@ -45,15 +47,18 @@ func onAcceptingProdcuer(msg acomm.Message) {
 	log.Infof("Accepting producer: %s  message: %s", msg.RemoteAddr, MSG)
 }
 
-func (t *ProducerServer[T]) InformLeaderStatus() {
-	t.amILeader.Set(true)
+func (t *ProducerServer[T]) InformLeaderStatus(val bool) {
+	t.amILeader.Set(val)
+	fmt.Println("Setting leader status: ", val, t.amILeader.Get(), t.topic.GetID())
 }
 
 // GossipPush handles pushing messages to replicas & acknowledgement.
 // Leader pushes data to replicas & adds ack task to queue.
 // Followers acknowledges client (leader).
 func (t *ProducerServer[T]) GossipPush(clientAddr acomm.ServerAddr, data queue.PayloadIF) {
+	fmt.Println("check : ", t.amILeader.Get(), t.topic.GetID())
 	if !t.amILeader.Get() {
+		fmt.Println("I am following")
 		t.ackHandler.P2PServer.Send(clientAddr.Addr, struct{}{}, queue.Ack{Id: data.GetID()})
 		return
 	}
@@ -61,6 +66,7 @@ func (t *ProducerServer[T]) GossipPush(clientAddr acomm.ServerAddr, data queue.P
 	// get all followers for t.topicBucket
 	lh := lighthouse.GetLightHouse()
 	followers, err := lh.ReadFollowers(t.topic.GetPath())
+
 	if err != nil {
 		return
 	}
@@ -74,6 +80,8 @@ func (t *ProducerServer[T]) GossipPush(clientAddr acomm.ServerAddr, data queue.P
 		}
 		followersAddr = append(followersAddr, addr)
 	}
+
+	fmt.Printf("Forwarding to: %s \n", followersAddr)
 
 	task := ack.Task{
 		AckHandler:    t.ackHandler,

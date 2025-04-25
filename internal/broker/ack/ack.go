@@ -2,6 +2,7 @@ package ack
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ type Task struct {
 func (t Task) Exec() error {
 	count := 0
 	for _, addr := range t.Receivers {
+		fmt.Println("SEND: ", t.Data, " to: ", addr.BrokerAddr)
 		if err := t.AckHandler.P2PServer.SendToAsync(addr.BrokerAddr, addr.ProducerID, struct{}{}, t.Data); err != nil {
 			log.Errorf("failed to send data to follower: %v", addr)
 			continue
@@ -35,13 +37,13 @@ func (t Task) Exec() error {
 		t.Wg.Add(1)
 		count++
 	}
-	if count == 0 {
-		return nil
-	}
-	ctx, cancel := t.AckHandler.Add(t.MsgID, t.Wg)
-	t.AckHandler.AcknowledgeClient(ctx, cancel, t.MsgID, func() {
-		t.AckHandler.P2PServer.Send(t.AckClientAddr, struct{}{}, queue.Ack{Id: t.Data.GetID()})
-	})
+	// if count == 0 {
+	// 	return nil
+	// }
+	// ctx, cancel := t.AckHandler.Add(t.MsgID, t.Wg)
+	// t.AckHandler.AcknowledgeClient(ctx, cancel, t.MsgID, func() {
+	// 	t.AckHandler.P2PServer.Send(t.AckClientAddr, struct{}{}, queue.Ack{Id: t.Data.GetID()})
+	// })
 	return nil
 }
 

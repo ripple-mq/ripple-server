@@ -47,6 +47,6 @@ func (t *Server) Stop() {
 	t.CS.Stop()
 }
 
-func (t *Server) InformLeaderStatus() {
-	t.PS.InformLeaderStatus()
+func (t *Server) InformLeaderStatus(val bool) {
+	t.PS.InformLeaderStatus(val)
 }

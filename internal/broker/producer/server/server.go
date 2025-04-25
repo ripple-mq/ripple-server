@@ -41,7 +41,7 @@ func NewProducerServer[T queue.PayloadIF](id string, q *queue.Queue[T], topic to
 		q:          q,
 		topic:      topic,
 		ackHandler: ackHandler,
-		amILeader:  collection.NewConcurrentValue(false),
+		amILeader:  collection.NewConcurrentValue(true),
 	}, nil
 }
 
