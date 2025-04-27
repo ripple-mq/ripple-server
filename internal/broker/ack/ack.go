@@ -1,5 +1,11 @@
 package ack
 
+/*
+	NOTES:
+		- Send the data from p2p client as asyncServer is not able to initalize new connection
+		- Set ShouldClientHandleConn true to listen for ack from follower
+*/
+
 import (
 	"context"
 	"sync"
@@ -26,6 +32,8 @@ type Task struct {
 
 // Exec sends data to all followers asynchronously and manages acknowledgment.
 // Once all followers acknowledge, it sends the final acknowledgment to the client.
+//
+// Note: final ack to client is disabled for now
 func (t Task) Exec() error {
 	count := 0
 	for _, addr := range t.Receivers {
