@@ -11,7 +11,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
 )
 
-// AskQuery needs a standard serialization to make it compatible with all language/frameworks
+// TODO: AskQuery needs a standard serialization to make it compatible with all language/frameworks
 // Consumer client need to poll with AskQuery to initiate streaming
 type AskQuery struct {
 	Count int

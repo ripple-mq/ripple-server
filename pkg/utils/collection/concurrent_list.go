@@ -42,6 +42,7 @@ func (t *ConcurrentList[T]) Append(value T) {
 	t.list = append(t.list, value)
 }
 
+// Don't need lock, bottleneck
 func (t *ConcurrentList[T]) Size() int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()

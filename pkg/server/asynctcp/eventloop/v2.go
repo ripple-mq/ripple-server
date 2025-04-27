@@ -246,7 +246,6 @@ func (t *Server) dial(addr string, metadata []byte) (peer.Peer, error) {
 		return peerNode, nil
 	}
 	conn, err := net.Dial(t.listenAddr.Network(), addr)
-	fmt.Println(addr, err)
 	peerNode = t.addConnection(conn)
 
 	t.write(peerNode, metadata)

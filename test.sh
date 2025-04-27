@@ -7,7 +7,7 @@ echo "Waiting for Zookeeper to initialize..."
 sleep 10 
 
 echo "Building and starting ripple-server..."
-docker-compose -f test.compose.yml up  --build ripple-server-1 
+docker-compose -f test.compose.yml up  --build ripple-server-1 ripple-server-2
 
 echo "Checking the status of the containers..."
 docker-compose ps

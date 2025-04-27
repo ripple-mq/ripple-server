@@ -19,14 +19,14 @@ const (
 )
 
 type LeaderElection struct {
-	leaderSignal chan struct{}
+	leaderSignal chan bool
 	fatalSignal  chan struct{}
 	io           *io.IO
 }
 
 // NewLeaderElection returns *LeaderElection
 func NewLeaderElection(io *io.IO) *LeaderElection {
-	return &LeaderElection{io: io, leaderSignal: make(chan struct{}, 1), fatalSignal: make(chan struct{}, 1)}
+	return &LeaderElection{io: io, leaderSignal: make(chan bool, 1), fatalSignal: make(chan struct{}, 1)}
 }
 
 // Start begins the leader election process.
@@ -69,9 +69,10 @@ func (t *LeaderElection) elect(fpath u.Path, data any) error {
 		if _, err := t.RegisterLeader(u.PathBuilder{}.Base(fpath).CDBack().CDBack().Create(), data); err != nil {
 			return err
 		}
-		t.LeaderSignal()
+		t.LeaderSignal(true)
 	} else {
 		log.Infof("I am not the leader, my node is: %s\n  but leader: %s", fileName, followers[0])
+		t.LeaderSignal(false)
 	}
 
 	return nil
@@ -177,13 +178,13 @@ func (t *LeaderElection) ReadFollowers(path u.Path) ([][]byte, error) {
 }
 
 // ListenForLeaderSignal returns a channel that signals when the leader is elected.
-func (t *LeaderElection) ListenForLeaderSignal() <-chan struct{} {
+func (t *LeaderElection) ListenForLeaderSignal() <-chan bool {
 	return t.leaderSignal
 }
 
 // LeaderSignal sends a signal indicating that the leader has been elected.
-func (t *LeaderElection) LeaderSignal() {
-	t.leaderSignal <- struct{}{}
+func (t *LeaderElection) LeaderSignal(val bool) {
+	t.leaderSignal <- val
 }
 
 // FatalSignal sends a signal indicating a fatal error has occurred.

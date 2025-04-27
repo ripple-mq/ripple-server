@@ -30,9 +30,6 @@ func NewConsumerServer[T queue.PayloadIF](id string, q *queue.Queue[T]) (*Consum
 }
 
 // Listen starts the server and begins accepting data from the message queue.
-//
-// It initializes the server to listen for incoming connections and then starts
-// accepting consume requests from the message queue asynchronously.
 func (t *ConsumerServer[T]) Listen() error {
 	err := t.server.Listen()
 	t.startAcceptingConsumeReq()

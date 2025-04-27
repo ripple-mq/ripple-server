@@ -45,8 +45,21 @@ func onAcceptingProdcuer(msg acomm.Message) {
 	log.Infof("Accepting producer: %s  message: %s", msg.RemoteAddr, MSG)
 }
 
-func (t *ProducerServer[T]) InformLeaderStatus() {
-	t.amILeader.Set(true)
+func (t *ProducerServer[T]) InformLeaderStatus(val bool) {
+	t.amILeader.Set(val)
+}
+
+func (t *ProducerServer[T]) watchLeader() {
+	for {
+		lh := lighthouse.GetLightHouse()
+		leader, _ := lh.ReadLeader(t.topic.GetPath())
+		addr, _ := comm.DecodeToPCServerID(leader)
+		if addr.ProducerID == t.ID {
+			t.amILeader.Set(true)
+		} else {
+			t.amILeader.Set(false)
+		}
+	}
 }
 
 // GossipPush handles pushing messages to replicas & acknowledgement.
@@ -54,13 +67,15 @@ func (t *ProducerServer[T]) InformLeaderStatus() {
 // Followers acknowledges client (leader).
 func (t *ProducerServer[T]) GossipPush(clientAddr acomm.ServerAddr, data queue.PayloadIF) {
 	if !t.amILeader.Get() {
-		t.ackHandler.P2PServer.Send(clientAddr.Addr, struct{}{}, queue.Ack{Id: data.GetID()})
+		log.Debugf("I am a follower: sending ack back to: %s", clientAddr.Addr)
+		t.server.Send(clientAddr.Addr, struct{}{}, queue.Ack{Id: data.GetID()})
 		return
 	}
 
 	// get all followers for t.topicBucket
 	lh := lighthouse.GetLightHouse()
 	followers, err := lh.ReadFollowers(t.topic.GetPath())
+
 	if err != nil {
 		return
 	}

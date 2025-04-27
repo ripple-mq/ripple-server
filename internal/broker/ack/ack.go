@@ -1,5 +1,11 @@
 package ack
 
+/*
+	NOTES:
+		- Send the data from p2p client as asyncServer is not able to initalize new connection
+		- Set ShouldClientHandleConn true to listen for ack from follower
+*/
+
 import (
 	"context"
 	"sync"
@@ -9,6 +15,7 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/broker/comm"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
@@ -25,23 +32,19 @@ type Task struct {
 
 // Exec sends data to all followers asynchronously and manages acknowledgment.
 // Once all followers acknowledge, it sends the final acknowledgment to the client.
+//
+// Note: final ack to client is disabled for now
 func (t Task) Exec() error {
 	count := 0
 	for _, addr := range t.Receivers {
-		if err := t.AckHandler.P2PServer.SendToAsync(addr.BrokerAddr, addr.ProducerID, struct{}{}, t.Data); err != nil {
+		if err := t.AckHandler.P2PClient.SendToAsync(addr.BrokerAddr, addr.ProducerID, struct{}{}, t.Data); err != nil {
 			log.Errorf("failed to send data to follower: %v", addr)
 			continue
 		}
 		t.Wg.Add(1)
 		count++
 	}
-	if count == 0 {
-		return nil
-	}
-	ctx, cancel := t.AckHandler.Add(t.MsgID, t.Wg)
-	t.AckHandler.AcknowledgeClient(ctx, cancel, t.MsgID, func() {
-		t.AckHandler.P2PServer.Send(t.AckClientAddr, struct{}{}, queue.Ack{Id: t.Data.GetID()})
-	})
+
 	return nil
 }
 
@@ -52,11 +55,12 @@ type Counter struct {
 
 type AcknowledgeHandler struct {
 	ackMessages *collection.ConcurrentMap[int32, *Counter]
-	P2PServer   *asynctcp.Transport
+	P2PClient   *tcp.Transport
+	AsyncServer *asynctcp.Transport
 }
 
-func NewAcknowledgeHandler(p2pServer *asynctcp.Transport) *AcknowledgeHandler {
-	return &AcknowledgeHandler{ackMessages: collection.NewConcurrentMap[int32, *Counter](), P2PServer: p2pServer}
+func NewAcknowledgeHandler(p2pClient *tcp.Transport, asyncServer *asynctcp.Transport) *AcknowledgeHandler {
+	return &AcknowledgeHandler{ackMessages: collection.NewConcurrentMap[int32, *Counter](), P2PClient: p2pClient, AsyncServer: asyncServer}
 }
 
 // Run starts a goroutine that listens for acknowledgments from the P2P server.
@@ -65,7 +69,7 @@ func (t *AcknowledgeHandler) Run() error {
 	go func() {
 		for {
 			var ack queue.Ack
-			_, err := t.P2PServer.Consume(encoder.GOBDecoder{}, &ack)
+			_, err := t.P2PClient.Consume(encoder.GOBDecoder{}, &ack)
 			if err != nil {
 				log.Errorf("failed to receive acknowledgement: %v", err)
 			}

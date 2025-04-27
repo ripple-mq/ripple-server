@@ -11,7 +11,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/peer"
 )
 
-// handleConnection processes incoming data from a network connection, handling message length and payload.
+// handleConnection processes incoming data from a network connection, handling message header and payload.
 // It calls the OnAcceptingConn function on the first message and enqueues subsequent messages to the incoming queue.
 func (t *Transport) handleConnection(conn net.Conn) {
 	isOnConnExecuted := false
@@ -24,7 +24,7 @@ func (t *Transport) handleConnection(conn net.Conn) {
 	}()
 
 	for {
-		// first 4 bytes are used for message length
+		// first 4 bytes header
 		lengthBytes := make([]byte, 4)
 		_, err := conn.Read(lengthBytes)
 		length := binary.BigEndian.Uint32(lengthBytes)
