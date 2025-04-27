@@ -50,6 +50,7 @@ func (t *Transport) dial(addr string, metadata any) (peer.Peer, error) {
 		return peerNode, nil
 	}
 	conn, err := net.Dial(t.ListenAddr.Network(), addr)
+	fmt.Println("ERROR: ", err)
 	peerNode = t.addConnection(conn)
 
 	t.write(peerNode, metadata)

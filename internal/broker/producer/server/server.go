@@ -2,12 +2,15 @@ package producer
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/internal/broker/ack"
 	"github.com/ripple-mq/ripple-server/internal/broker/queue"
 	"github.com/ripple-mq/ripple-server/internal/topic"
+	"github.com/ripple-mq/ripple-server/pkg/p2p/transport/tcp"
 	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp"
+	"github.com/ripple-mq/ripple-server/pkg/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
 )
 
@@ -29,11 +32,11 @@ func NewProducerServer[T queue.PayloadIF](id string, q *queue.Queue[T], topic to
 	if err != nil {
 		fmt.Println("error creating server, ", err)
 	}
-	ackServer, err := asynctcp.NewTransport(fmt.Sprintf("ack-%s", id), asynctcp.TransportOpts{OnAcceptingConn: onAcceptingProdcuer, Ack: true})
+	ackServer, err := tcp.NewTransport(utils.RandLocalAddr(), func(conn net.Conn, message []byte) {}, tcp.TransportOpts{ShouldClientHandleConn: true})
 	if err != nil {
 		fmt.Println("error creating ack server, ", err)
 	}
-	ackHandler := ack.NewAcknowledgeHandler(ackServer)
+	ackHandler := ack.NewAcknowledgeHandler(ackServer, server)
 
 	return &ProducerServer[T]{
 		ID:         server.ListenAddr.ID,
@@ -47,6 +50,7 @@ func NewProducerServer[T queue.PayloadIF](id string, q *queue.Queue[T], topic to
 
 // Listen starts the Pub server and begins populating data to the message queue.
 func (t *ProducerServer[T]) Listen() error {
+	go t.watchLeader()
 	if err := t.server.Listen(); err != nil {
 		return fmt.Errorf("failed to start queue server: %v", err)
 	}
