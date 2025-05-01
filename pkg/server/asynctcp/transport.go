@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ripple-mq/ripple-server/pkg/utils/pen"
+
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	tcpcomm "github.com/ripple-mq/ripple-server/pkg/p2p/transport/comm"
 	"github.com/ripple-mq/ripple-server/pkg/server/asynctcp/comm"
@@ -41,6 +43,7 @@ func NewTransport(id string, opts ...TransportOpts) (*Transport, error) {
 
 	addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", ""), config.Conf.AsyncTCP.Port)
 	listenAddr := addr
+	pen.SpinBar("Creating eventloop ", "Eventloop created sucessfully ")
 	el, err := eventloop.GetServer(listenAddr)
 	if err != nil {
 		return nil, err

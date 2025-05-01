@@ -23,7 +23,6 @@ type BootstrapServer struct {
 
 // NewBootstrapServer creates and returns a new BootstrapServer instance.
 func NewBootstrapServer(addr string) (*BootstrapServer, error) {
-	log.Errorf("Creating ")
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err

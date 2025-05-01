@@ -76,7 +76,6 @@ func GetServer(addr string) (*Server, error) {
 // newServer initializes a TCP server, sets up a kqueue for event notification,
 // and registers the listener for read events. It returns the server instance or an error if any step fails.
 func newServer(addr string) (*Server, error) {
-	log.Info("Creating Eventloop")
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Errorf("error starting server: %v", err)
@@ -208,7 +207,7 @@ func (t *Server) Accept() error {
 		syscall.Close(connFd)
 		return fmt.Errorf("error adding connection to kqueue: %v", err)
 	}
-	log.Errorf("Accepted connection from %s\n", addr)
+	log.Infof("Accepted connection from %s\n", addr)
 
 	return nil
 }
