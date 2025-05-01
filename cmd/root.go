@@ -37,10 +37,8 @@ func printBanner() {
 }
 
 func Execute() {
-	pen.SpinWheel("Starting server... ", "Finished 🎉")
 
 	cfg := config.Conf
-	l := pen.Loader("Starting ripple server... ")
 	go func() {
 		addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", "127.0.0.1"), 6060)
 		log.Info("Profiling started")
@@ -55,6 +53,6 @@ func Execute() {
 	time.Sleep(2 * time.Second)
 	printBanner()
 
-	pen.Complete(l, "ripple server initiated successfully 🎉")
+	pen.SpinBar("Starting ripple server... ", "ripple server initiated successfully 🎉")
 	select {}
 }
