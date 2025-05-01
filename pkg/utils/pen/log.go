@@ -17,6 +17,7 @@ func InitLog() {
 func Loader(suffix string) *spinner.Spinner {
 	s := spinner.New(spinner.CharSets[36], 120*time.Millisecond)
 	s.Prefix = suffix
+	s.FinalMSG = ""
 	s.Start()
 	return s
 }

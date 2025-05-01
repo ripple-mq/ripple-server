@@ -44,7 +44,7 @@ func Execute() {
 	go func() {
 		addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", "127.0.0.1"), 6060)
 		log.Info("Profiling started")
-		log.Info(http.ListenAndServe(addr, nil))
+		http.ListenAndServe(addr, nil)
 	}()
 	log.Info(cfg)
 
