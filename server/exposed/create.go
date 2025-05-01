@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -21,7 +20,7 @@ func (c Server) CreateBucket(ctx context.Context, req *pb.CreateBucketReq) (*pb.
 		return &pb.CreateBucketResp{Success: false}, err
 	}
 
-	fmt.Printf("servers: %s \n", servers)
+	log.Debug("servers: %s \n", servers)
 
 	createReq(servers, tp)
 	return nil, nil

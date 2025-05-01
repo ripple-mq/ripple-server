@@ -22,6 +22,18 @@ func RandLocalAddr() string {
 	return fmt.Sprintf(":%d", randomNumber)
 }
 
+func printBanner() {
+	fmt.Print(`
+	██████╗ ██╗██████╗ ██████╗ ██╗     ███████╗
+	██╔══██╗██║██╔══██╗██╔══██╗██║     ██╔════╝
+	██████╔╝██║██████╔╝██████╔╝██║     █████╗  
+	██╔══██╗██║██╔═══╝ ██╔═══╝ ██║     ██╔══╝  
+	██║  ██║██║██║     ██║     ███████╗███████╗
+	╚═╝  ╚═╝╚═╝╚═╝     ╚═╝     ╚══════╝╚══════╝
+	\n`)
+	fmt.Println("Welcome to Ripple....")
+}
+
 func Execute() {
 	cfg := config.Conf
 	go func() {
@@ -36,6 +48,7 @@ func Execute() {
 	s := server.NewServer(internal, bootstrap)
 	s.Listen()
 
+	printBanner()
 	select {}
 
 }

@@ -30,11 +30,11 @@ type ProducerServer[T queue.PayloadIF] struct {
 func NewProducerServer[T queue.PayloadIF](id string, q *queue.Queue[T], topic topic.TopicBucket) (*ProducerServer[T], error) {
 	server, err := asynctcp.NewTransport(id, asynctcp.TransportOpts{OnAcceptingConn: onAcceptingProdcuer, Ack: true})
 	if err != nil {
-		fmt.Println("error creating server, ", err)
+		log.Errorf("error creating server, %v", err)
 	}
 	ackServer, err := tcp.NewTransport(utils.RandLocalAddr(), func(conn net.Conn, message []byte) {}, tcp.TransportOpts{ShouldClientHandleConn: true})
 	if err != nil {
-		fmt.Println("error creating ack server, ", err)
+		log.Errorf("error creating ack server, %v", err)
 	}
 	ackHandler := ack.NewAcknowledgeHandler(ackServer, server)
 

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/charmbracelet/log"
@@ -66,5 +65,5 @@ func (t *InternalServer) registerServer(addr string) {
 	path := utils.PathBuilder{}.Base(utils.Root()).CD("servers").Create()
 	lh := lighthouse.GetLightHouse()
 	p := lh.RegisterSequential(path, broker.InternalRPCServerAddr{Addr: addr})
-	fmt.Println("Registration done: ", p)
+	log.Infof("Registration done: %s", p)
 }
