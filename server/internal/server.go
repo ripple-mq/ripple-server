@@ -7,6 +7,7 @@ import (
 	"github.com/ripple-mq/ripple-server/internal/broker"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse"
 	"github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
+	"github.com/ripple-mq/ripple-server/pkg/utils/pen"
 	pb "github.com/ripple-mq/ripple-server/server/internal/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -64,6 +65,6 @@ func (t *InternalServer) Stop() {
 func (t *InternalServer) registerServer(addr string) {
 	path := utils.PathBuilder{}.Base(utils.Root()).CD("servers").Create()
 	lh := lighthouse.GetLightHouse()
-	p := lh.RegisterSequential(path, broker.InternalRPCServerAddr{Addr: addr})
-	log.Infof("Registration done: %s", p)
+	lh.RegisterSequential(path, broker.InternalRPCServerAddr{Addr: addr})
+	pen.SpinWheel("Registring server.. ", "Registration successfull")
 }

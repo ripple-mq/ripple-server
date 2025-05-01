@@ -43,7 +43,7 @@ func NewTransport(id string, opts ...TransportOpts) (*Transport, error) {
 
 	addr := fmt.Sprintf("%s:%d", env.Get("ASYNC_TCP_IPv4", ""), config.Conf.AsyncTCP.Port)
 	listenAddr := addr
-	pen.SpinBar("Creating eventloop ", "Eventloop created sucessfully ")
+	pen.SpinWheel("Creating eventloop ", "Eventloop created sucessfully ")
 	el, err := eventloop.GetServer(listenAddr)
 	if err != nil {
 		return nil, err

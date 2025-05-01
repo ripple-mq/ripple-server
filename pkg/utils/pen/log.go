@@ -15,7 +15,7 @@ func InitLog() {
 }
 
 func Loader(suffix string) *spinner.Spinner {
-	s := spinner.New(spinner.CharSets[36], 120*time.Millisecond)
+	s := spinner.New(spinner.CharSets[14], 120*time.Millisecond)
 	s.Prefix = suffix
 	s.FinalMSG = ""
 	s.Start()
@@ -31,6 +31,7 @@ func SpinWheel(start string, finish string) {
 	s := spinner.New(spinner.CharSets[14], 120*time.Millisecond)
 
 	s.Prefix = start
+	s.FinalMSG = ""
 	s.Start()
 
 	time.Sleep(1 * time.Second)
@@ -42,6 +43,7 @@ func SpinBar(start string, finish string) {
 	s := spinner.New(spinner.CharSets[36], 120*time.Millisecond)
 
 	s.Prefix = start
+	s.FinalMSG = ""
 	s.Start()
 
 	time.Sleep(1 * time.Second)

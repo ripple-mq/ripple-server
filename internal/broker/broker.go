@@ -32,8 +32,8 @@ func NewBroker(topic tp.TopicBucket) *Broker {
 
 // Run spins up Pub/Sub servers & starts listening to new conn
 func (t *Broker) Run(pId, cId string) error {
-	l := pen.Loader("Starting new broker...")
-	defer pen.Complete(l, "Successfully started new broker")
+	pen.SpinWheel("Starting new broker...", "Successfully started new broker")
+
 	bs := server.NewServer(pId, cId, t.topic)
 	if err := bs.Listen(); err != nil {
 		return err
