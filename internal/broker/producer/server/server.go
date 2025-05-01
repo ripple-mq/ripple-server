@@ -50,7 +50,7 @@ func NewProducerServer[T queue.PayloadIF](id string, q *queue.Queue[T], topic to
 
 // Listen starts the Pub server and begins populating data to the message queue.
 func (t *ProducerServer[T]) Listen() error {
-	go t.watchLeader()
+	// go t.watchLeader()  FIX: strongly consistent leader status
 	if err := t.server.Listen(); err != nil {
 		return fmt.Errorf("failed to start queue server: %v", err)
 	}
