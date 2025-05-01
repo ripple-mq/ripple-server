@@ -3,6 +3,7 @@ package processor
 import (
 	"github.com/charmbracelet/log"
 	"github.com/ripple-mq/ripple-server/pkg/utils/collection"
+	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 )
 
 type Task interface {
@@ -47,5 +48,9 @@ func (t *Processor) run() {
 }
 
 func (t *Processor) Add(task Task) {
+	if t.q.Size() == config.Conf.AsyncTaskQueue.Max_size {
+		log.Errorf("task queue reached max limit of %d, rejecting", config.Conf.AsyncTaskQueue.Max_size)
+		return
+	}
 	t.q.Push(task)
 }
