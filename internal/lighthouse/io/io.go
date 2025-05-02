@@ -36,7 +36,7 @@ func newIO() *IO {
 //
 // waits for a given period of time to complete full handshake.
 func connect() *zk.Conn {
-	url := fmt.Sprintf("%s:%s", env.Get("ZK_IPv4", localAddr), env.Get("ZK_PORT", "2182"))
+	url := fmt.Sprintf("%s:%s", env.Get("ZK_IPv4", localAddr), env.Get("ZK_PORT", "2181"))
 	l := pen.Loader("Initiating lighthouse connection. ")
 	log.Infof("Attempting zookeeper connection: %s", url)
 	conn, _, err := zk.Connect([]string{url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms*int(time.Millisecond)))
