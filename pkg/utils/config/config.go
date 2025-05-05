@@ -37,6 +37,9 @@ type Config struct {
 	AsyncTCP struct {
 		Port int
 	}
+	AsyncTaskQueue struct {
+		Max_size int
+	}
 }
 
 var Conf, _ = LoadConfig(".")

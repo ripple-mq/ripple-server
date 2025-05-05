@@ -12,6 +12,17 @@ services:
       - "8901:8790" # eventloop running
       - "8891:8891" # bootstrap gRPC
       - "6060:6060" # performance profiling
+    mem_limit: 4g              
+    cpus: 2.0                  
+    ulimits:                  
+      nproc: 65535
+      nofile:
+        soft: 65535
+        hard: 65535
+    sysctls:                  
+      net.core.somaxconn: 1024
+      net.ipv4.tcp_max_syn_backlog: 2048
+      net.ipv4.ip_local_port_range: "1024 65535"
     depends_on:
       - zookeeper
     environment:
@@ -23,24 +34,6 @@ services:
       - 8.8.8.8
       - 8.8.4.4
 
-  ripple-server-2:
-    build:
-      context: .
-      dockerfile: docker/test/Dockerfile
-    networks:
-      custom-net:
-        ipv4_address: 172.28.0.4
-    depends_on:
-      - zookeeper
-    environment:
-      - ZK_IPv4=172.28.0.3
-      - ASYNC_TCP_IPv4=172.28.0.4
-      - ZK_PORT=2181
-    restart: always
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-   
   zookeeper:
     image: zookeeper
     container_name: zookeeper

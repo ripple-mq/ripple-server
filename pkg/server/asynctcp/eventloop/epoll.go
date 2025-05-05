@@ -97,12 +97,12 @@ func newServer(addr string) (*Server, error) {
 		Port: p,
 		Addr: [4]byte{ip4[0], ip4[1], ip4[2], ip4[3]},
 	}); err != nil {
-		fmt.Println("ERR, ", err)
+		log.Errorf("epoll error= %v", err)
 		return nil, err
 	}
 
 	if err = syscall.Listen(serverFD, 1000); err != nil {
-		fmt.Println("ERR, ", err)
+		log.Errorf("epoll error= %v", err)
 		return nil, err
 	}
 
@@ -117,7 +117,7 @@ func newServer(addr string) (*Server, error) {
 	}
 
 	if err = syscall.EpollCtl(epollFD, syscall.EPOLL_CTL_ADD, serverFD, &socketServerEvent); err != nil {
-		fmt.Println("ERR, ", err)
+		log.Errorf("epoll error= %v", err)
 		return nil, err
 	}
 
@@ -145,7 +145,7 @@ func (t *Server) UnSubscribe(id string) {
 	t.listeners.Delete(id)
 }
 
-// Run starts the server event loop, monitoring for I/O events using kqueue.
+// Run starts the server event loop, monitoring for I/O events using epoll.
 // It handles new incoming connections and reads data from existing connections.
 // Errors during event processing, connection acceptance, or data reading are logged.
 func (t *Server) Run() {
@@ -185,8 +185,8 @@ func (t *Server) Run() {
 }
 
 // Accept handles new incoming connections on the server's listener socket.
-// It accepts the connection, adds it to the list of active clients, and registers it with kqueue for read events.
-// Any errors during acceptance, client registration, or kqueue addition are logged and returned.
+// It accepts the connection, adds it to the list of active clients, and registers it with epoll for read events.
+// Any errors during acceptance, client registration, or epoll addition are logged and returned.
 func (t *Server) Accept() error {
 	connFd, sa, err := syscall.Accept(t.listenerFd)
 	if err != nil {
@@ -206,17 +206,17 @@ func (t *Server) Accept() error {
 	}
 
 	if err := syscall.EpollCtl(t.epollFd, EPOLL_CTL_ADD, connFd, &event); err != nil {
-		fmt.Println("Error adding connection to epoll:", err)
+		log.Errorf("Error adding connection to epoll: %v", err)
 		t.clients.Delete(connFd)
 		syscall.Close(connFd)
 		return fmt.Errorf("error adding connection to epoll: %v", err)
 	}
-	fmt.Printf("Accepted connection from fd %d\n", connFd)
+	log.Infof("Accepted connection from fd %d\n", connFd)
 	return nil
 }
 
 // Send sends data to a connected client identified by its address.
-// If the connection does not exist, it establishes a new TCP connection, registers it with kqueue for read events,
+// If the connection does not exist, it establishes a new TCP connection, registers it with epoll for read events,
 // and sends the data. Errors during connection, registration, or data transmission are logged and returned.
 func (t *Server) Send(address string, metadata []byte, data []byte) error {
 	t.mu.Lock()
@@ -233,7 +233,7 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 
 	// If not connected, initiate a new connection
 	// connect to a remote server over TCP, retrieves the connection's file descriptor,
-	// and register it with kqueue to monitor for read events. Send initial data over the connection.
+	// and register it with epoll to monitor for read events. Send initial data over the connection.
 
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
@@ -285,7 +285,7 @@ func (t *Server) write(fd int, data []byte) (int, error) {
 	return written, nil
 }
 
-// Read handles incoming data from a client connection identified by the kqueue event.
+// Read handles incoming data from a client connection identified by the epoll event.
 // It reads the message length, then the actual data, decodes it, and forwards it to the appropriate subscriber.
 // If the subscriber hasn't been greeted yet, it sends a greeting; otherwise, it pushes the message.
 // Errors during reading or processing lead to client removal and error reporting.
@@ -312,7 +312,7 @@ func (t *Server) Read(fd int) error {
 
 		addr, _ := t.clients.Get(fd)
 		if !subscriber.GreetStatus.Get() {
-			fmt.Println("grreting metadata")
+			log.Debug("greeting metadata")
 			subscriber.Greet(ic.Message{RemoteAddr: addr, RemoteID: payload.FromServerID, Payload: payload.Data})
 			subscriber.GreetStatus.Set(true)
 		} else {
@@ -330,7 +330,7 @@ func (t *Server) read(fd int, buffer []byte) (int, error) {
 	for totalRead < len(buffer) {
 		n, err := syscall.Read(fd, buffer[totalRead:])
 		if err != nil {
-			fmt.Println("ERR, ", err)
+			log.Errorf("epoll error= %v", err)
 			return totalRead, err
 		}
 		if n == 0 {
@@ -350,7 +350,7 @@ func (t *Server) removeClient(fd int) {
 			log.Warnf("Failed to remove FD %d from epoll: %v", fd, err)
 		}
 		er := syscall.Close(fd)
-		fmt.Printf("Client %d disconnected : %v\n", fd, er)
+		log.Infof("Client %d disconnected : %v\n", fd, er)
 	}
 }
 
@@ -359,7 +359,7 @@ func (t *Server) decodeToPayload(data []byte) comm.Payload {
 	var msg comm.Payload
 	err := t.Decoder.Decode(bytes.NewBuffer(data), &msg)
 	if err != nil {
-		fmt.Println("Decode error, ", err)
+		log.Errorf("Decode error, %v", err)
 	}
 	return msg
 }
@@ -368,7 +368,7 @@ func (t *Server) Clean() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	fmt.Println("CLEANING STARTED >>>>>>>>>>>>>> ")
+	log.Debug("CLEANING STARTED >>>>>>>>>>>>>> ")
 	// release lock to allow creating new Server instance
 	instanceCreationLock.Unlock()
 
@@ -392,11 +392,11 @@ func (t *Server) Clean() error {
 		log.Info("Listener socket closed.")
 	}
 
-	// Close the kqueue
+	// Close the epoll
 	if err := syscall.Close(t.epollFd); err != nil {
-		log.Errorf("Error closing kqueue: %v", err)
+		log.Errorf("Error closing epoll: %v", err)
 	} else {
-		log.Info("Kqueue closed.")
+		log.Info("epoll closed.")
 	}
 
 	// Clear subscribers

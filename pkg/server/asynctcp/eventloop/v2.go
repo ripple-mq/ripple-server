@@ -68,7 +68,7 @@ func GetServer(addr string) (*Server, error) {
 // newServer initializes a TCP server, sets up a kqueue for event notification,
 // and registers the listener for read events. It returns the server instance or an error if any step fails.
 func newServer(addr string) (*Server, error) {
-	fmt.Println("Creating Eventloop V2")
+	log.Info("Creating Eventloop V2")
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,6 @@ func (t *Server) Run() {
 // It calls the OnAcceptingConn function on the first message and enqueues subsequent messages to the incoming queue.
 func (t *Server) handleConnection(conn net.Conn) {
 	isOnConnExecuted := false
-	fmt.Println("New connection")
 	defer func() {
 		err := t.dropConnection(conn.RemoteAddr().String())
 		if err != nil {
@@ -271,7 +270,7 @@ func (t *Server) decodeToPayload(data []byte) comm.Payload {
 	var msg comm.Payload
 	err := t.Decoder.Decode(bytes.NewBuffer(data), &msg)
 	if err != nil {
-		fmt.Println("Decode error, ", err)
+		log.Errorf("Decode error, %v", err)
 	}
 	return msg
 }

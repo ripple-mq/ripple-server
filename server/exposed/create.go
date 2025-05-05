@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -21,7 +20,7 @@ func (c Server) CreateBucket(ctx context.Context, req *pb.CreateBucketReq) (*pb.
 		return &pb.CreateBucketResp{Success: false}, err
 	}
 
-	fmt.Printf("servers: %s \n", servers)
+	log.Debug("servers: %s \n", servers)
 
 	createReq(servers, tp)
 	return nil, nil
@@ -29,7 +28,7 @@ func (c Server) CreateBucket(ctx context.Context, req *pb.CreateBucketReq) (*pb.
 
 func createReq(servers []broker.InternalRPCServerAddr, topic topic.TopicBucket) {
 
-	for _, addr := range servers[:2] {
+	for _, addr := range servers[:1] {
 		func(addr string) {
 			conn, err := grpc.NewClient(addr, grpc.WithInsecure())
 			if err != nil {

@@ -76,7 +76,6 @@ func GetServer(addr string) (*Server, error) {
 // newServer initializes a TCP server, sets up a kqueue for event notification,
 // and registers the listener for read events. It returns the server instance or an error if any step fails.
 func newServer(addr string) (*Server, error) {
-	fmt.Println("Creating Eventloop")
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Errorf("error starting server: %v", err)
@@ -153,7 +152,6 @@ func (t *Server) Run() {
 	for {
 		select {
 		case <-t.shutdownSignalCh:
-			fmt.Println("HI")
 			return
 		default:
 			n, err := syscall.Kevent(t.kq, nil, events, nil)
@@ -188,7 +186,7 @@ func (t *Server) Run() {
 func (t *Server) Accept() error {
 	connFd, sa, err := syscall.Accept(t.listenerFd)
 	if err != nil {
-		fmt.Println("Accept error:", err)
+		log.Errorf("Accept error:", err)
 		return fmt.Errorf("accept error: %v", err)
 	}
 
@@ -204,12 +202,12 @@ func (t *Server) Accept() error {
 		Flags:  EV_ADD | EV_ENABLE,
 	}
 	if _, err := syscall.Kevent(t.kq, []syscall.Kevent_t{kev}, nil, nil); err != nil {
-		fmt.Println("Error adding connection to kqueue:", err)
+		log.Errorf("Error adding connection to kqueue: %v", err)
 		t.clients.Delete(connFd)
 		syscall.Close(connFd)
 		return fmt.Errorf("error adding connection to kqueue: %v", err)
 	}
-	fmt.Printf("Accepted connection from %s\n", addr)
+	log.Infof("Accepted connection from %s\n", addr)
 
 	return nil
 }
@@ -236,13 +234,13 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		fmt.Println("Write error ", err)
+		log.Errorf("Write error %v", err)
 		return fmt.Errorf("failed to connect to %s: %v", address, err)
 	}
 
 	connFile, err := conn.(*net.TCPConn).File()
 	if err != nil {
-		fmt.Println("Write error ", err)
+		log.Errorf("Write error %v", err)
 		return fmt.Errorf("failed to get file descriptor: %v", err)
 	}
 
@@ -254,7 +252,7 @@ func (t *Server) Send(address string, metadata []byte, data []byte) error {
 	}
 
 	if _, err := syscall.Kevent(t.kq, []syscall.Kevent_t{kev}, nil, nil); err != nil {
-		fmt.Println("Write error ", err)
+		log.Errorf("Write error %v", err)
 		conn.Close()
 		return fmt.Errorf("failed to register new connection: %v", err)
 	}
@@ -358,7 +356,7 @@ func (s *Server) removeClient(fd int) {
 		if err := syscall.Close(fd); err != nil {
 			log.Warnf("Failed to close FD %d: %v", fd, err)
 		} else {
-			fmt.Printf("Client %d disconnected\n", fd)
+			log.Infof("Client %d disconnected\n", fd)
 		}
 
 		// Finally, remove from the client map
@@ -371,7 +369,7 @@ func (t *Server) decodeToPayload(data []byte) comm.Payload {
 	var msg comm.Payload
 	err := t.Decoder.Decode(bytes.NewBuffer(data), &msg)
 	if err != nil {
-		fmt.Println("Decode error, ", err)
+		log.Errorf("Decode error, %v", err)
 	}
 	return msg
 }

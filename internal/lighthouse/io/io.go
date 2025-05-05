@@ -9,6 +9,7 @@ import (
 	u "github.com/ripple-mq/ripple-server/internal/lighthouse/utils"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 	"github.com/ripple-mq/ripple-server/pkg/utils/env"
+	"github.com/ripple-mq/ripple-server/pkg/utils/pen"
 	"github.com/samuel/go-zookeeper/zk"
 )
 
@@ -35,13 +36,15 @@ func newIO() *IO {
 //
 // waits for a given period of time to complete full handshake.
 func connect() *zk.Conn {
-	url := fmt.Sprintf("%s:%s", env.Get("ZK_IPv4", localAddr), env.Get("ZK_PORT", "2182"))
+	url := fmt.Sprintf("%s:%s", env.Get("ZK_IPv4", localAddr), env.Get("ZK_PORT", "2181"))
+	l := pen.Loader("Initiating lighthouse connection. ")
 	log.Infof("Attempting zookeeper connection: %s", url)
 	conn, _, err := zk.Connect([]string{url}, time.Duration(config.Conf.Zookeeper.Session_timeout_ms*int(time.Millisecond)))
 	if err != nil {
 		log.Fatal("Failed to connect to Zookeeper:", err)
 	}
 	time.Sleep(time.Duration(config.Conf.Zookeeper.Connection_wait_time_ms * int(time.Millisecond)))
+	pen.Complete(l, "Successfully connected to lighthouse")
 	return conn
 }
 

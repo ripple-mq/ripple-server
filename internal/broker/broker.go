@@ -13,6 +13,7 @@ import (
 	"github.com/ripple-mq/ripple-server/pkg/p2p/encoder"
 	"github.com/ripple-mq/ripple-server/pkg/utils/config"
 	"github.com/ripple-mq/ripple-server/pkg/utils/env"
+	"github.com/ripple-mq/ripple-server/pkg/utils/pen"
 )
 
 type InternalRPCServerAddr struct {
@@ -31,6 +32,8 @@ func NewBroker(topic tp.TopicBucket) *Broker {
 
 // Run spins up Pub/Sub servers & starts listening to new conn
 func (t *Broker) Run(pId, cId string) error {
+	pen.SpinWheel("Starting new broker...", "Successfully started new broker")
+
 	bs := server.NewServer(pId, cId, t.topic)
 	if err := bs.Listen(); err != nil {
 		return err

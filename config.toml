@@ -4,9 +4,9 @@ connection_wait_time_ms=4000
 session_timeout_ms=400000000000
 
 [Server]
-internal_grpc_addr=":8000"
-exposed_grpc_addr=":8080"
-client_grpc_addr=":8909"
+internal_grpc_addr="8000"
+exposed_grpc_addr="8080"
+client_grpc_addr="8909"
 
 [Topic]
 replicas=3
@@ -23,3 +23,6 @@ per_connection_buffer_size=1000
 
 [AsyncTCP]
 port=8790
+
+[AsyncTaskQueue]
+max_size=100
